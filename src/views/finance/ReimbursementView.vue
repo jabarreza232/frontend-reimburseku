@@ -1,17 +1,85 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Search, X, Upload, CheckCircle, XCircle, CreditCard, Eye, FileText, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Search, X, CheckCircle, XCircle, FileText, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
+import Swal from 'sweetalert2'
 
-const reimbursements = ref([
-  { id: 'RMB-001', name: 'Silviana Rodrigo', date: '24/10/2025', category: 'Staff Software Engineer', title: 'Tiket Bus', amount: 'Rp.300.000', file: 'tiket.jpg', status: 'menunggu' },
-  { id: 'RMB-002', name: 'Budi Santoso', date: '23/10/2025', category: 'Product Manager', title: 'Belanja Kantor', amount: 'Rp.1.500.000', file: 'nota.jpg', status: 'menunggu' },
-  { id: 'RMB-003', name: 'Dewi Kurniawati', date: '22/10/2025', category: 'UI/UX Designer', title: 'Grab Food Makan Siang', amount: 'Rp.85.000', file: 'struk.jpg', status: 'menunggu' },
-  { id: 'RMB-004', name: 'Ahmad Fauzi', date: '21/10/2025', category: 'Data Analyst', title: 'Parkir Kantor', amount: 'Rp.50.000', file: 'karcis.pdf', status: 'dibayar' },
-  { id: 'RMB-005', name: 'Rina Wulandari', date: '20/10/2025', category: 'HR Specialist', title: 'Tiket Kereta JKT-BDG', amount: 'Rp.310.000', file: 'invoice.pdf', status: 'menunggu' },
-  { id: 'RMB-006', name: 'Dimas Aditya', date: '20/10/2025', category: 'Marketing', title: 'Iklan Facebook Ads', amount: 'Rp.2.500.000', file: 'receipt.png', status: 'menunggu' },
-  { id: 'RMB-007', name: 'Sarah Amalia', date: '27/10/2025', category: 'Content Creator', title: 'Sewa Lensa Standar', amount: 'Rp.500.000', file: 'sewa.pdf', status: 'menunggu' },
-  { id: 'RMB-008', name: 'Reza Pahlevi', date: '28/10/2025', category: 'Sales Executive', title: 'Tol & Bensin BDG', amount: 'Rp.310.000', file: 'struk_tol.jpg', status: 'dibayar' },
-])
+const reimbursements = ref([])
+const pendingCount = ref(0)
+
+const fetchReimbursements = async () => {
+  try {
+    const [reimbRes, empRes, catRes] = await Promise.all([
+      ApiService.getReimbursements(),
+      ApiService.getEmployees(),
+      ApiService.getCategories()
+    ])
+    
+    const listData = reimbRes.data?.data?.data || reimbRes.data?.data || []
+    const employees = empRes.data?.data?.data || empRes.data?.data || []
+    const categories = catRes.data?.data?.data || catRes.data?.data || []
+    
+    const empMap = employees.reduce((acc, curr) => { acc[curr.id_employees] = curr; return acc }, {})
+    const catMap = categories.reduce((acc, curr) => { acc[curr.id_category] = curr; return acc }, {})
+
+    reimbursements.value = listData.map(item => {
+      const emp = empMap[item.employees_id] || {}
+      const cat = catMap[item.category_id] || {}
+      
+      // Dapatkan id_approval dan status
+      let approvalId = item.id_request; // fallback
+      let dateSubmitted = item.expense_date; // fallback
+      let rawBackendStatus = 'PENDING';
+      
+      if (item.approval_reimbursement && item.approval_reimbursement.length > 0) {
+        // Ambil dari row terakhir jika ada
+        const lastApproval = item.approval_reimbursement[item.approval_reimbursement.length - 1];
+        approvalId = lastApproval.id_approval;
+        dateSubmitted = lastApproval.date_submitted || item.expense_date;
+        rawBackendStatus = lastApproval.status;
+      }
+      
+      const backendStatus = (rawBackendStatus || item.last_status || item.status || 'PENDING').toUpperCase();
+
+      // Map status backend ke UI
+      let uiStatus = 'menunggu';
+      if (backendStatus === 'APPROVED') uiStatus = 'disetujui';
+      else if (backendStatus === 'PAID') uiStatus = 'dibayar';
+      else if (backendStatus === 'REJECTED') uiStatus = 'ditolak';
+      
+      // Format Waktu Pengajuan (Anggap waktu dari database adalah UTC)
+      let parseableDate = dateSubmitted;
+      if (typeof parseableDate === 'string' && parseableDate.includes(' ') && !parseableDate.includes('T')) {
+        parseableDate = parseableDate.replace(' ', 'T') + 'Z'; // Convert 'YYYY-MM-DD HH:mm:ss' to 'YYYY-MM-DDTHH:mm:ssZ'
+      }
+      
+      const submitTime = new Date(parseableDate);
+      const submitDateStr = submitTime.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      const submitTimeStr = submitTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+      return {
+        id: item.id_request,
+        approvalId: approvalId, 
+        name: emp.name || 'Unknown',
+        date: new Date(item.expense_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+        submitTime: `${submitDateStr} - ${submitTimeStr}`,
+        category: emp.position || 'Employee',
+        title: item.description || cat.category_name || 'Reimbursement',
+        amount: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.amount),
+        rawAmount: item.amount,
+        file: item.attachment_url ? 'Lihat File' : '-',
+        fileUrl: item.attachment_url,
+        status: uiStatus,
+      }
+    })
+    
+    pendingCount.value = reimbursements.value.filter(i => i.status === 'menunggu').length
+  } catch (error) {
+    console.error('Failed to fetch data', error)
+  }
+}
+
+onMounted(fetchReimbursements)
 
 const searchQuery = ref('')
 const showConfirmModal = ref(false)
@@ -53,14 +121,91 @@ const handleFileUpload = (e) => {
   }
 }
 
-const confirmAction = () => {
-  if (proofFile.value) {
-    selectedItem.value.status = 'dibayar'
-    showConfirmModal.value = false
-    showSuccessModal.value = true
-  } else {
-    selectedItem.value.status = 'disetujui'
-    showConfirmModal.value = false
+const uploadShake = ref(false)
+
+const confirmAction = async () => {
+  if (!selectedItem.value) return
+  
+  if (isMandatory.value && !proofFile.value) {
+    uploadShake.value = true
+    setTimeout(() => uploadShake.value = false, 500)
+    Swal.fire({
+      icon: 'warning',
+      title: 'Perhatian',
+      text: 'Mohon unggah bukti transfer (PNG/JPG/PDF) terlebih dahulu!',
+      confirmButtonColor: '#3b82f6'
+    })
+    return
+  }
+  
+  try {
+    if (proofFile.value) {
+      // Pembayaran (Pay)
+      const formData = new FormData()
+      formData.append('status', 'APPROVED') // Backend automatically turns this into PAID if receipt exists
+      formData.append('transfer_receipt', proofFile.value)
+      
+      await ApiService.actionApproveOrReject(selectedItem.value.approvalId, formData)
+      
+      selectedItem.value.status = 'dibayar'
+      showConfirmModal.value = false
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Reimbursement berhasil dibayar!',
+        showConfirmButton: false,
+        timer: 1500
+      })
+    } else {
+      // Persetujuan (Approve)
+      const formData = new FormData()
+      formData.append('status', 'APPROVED')
+      await ApiService.actionApproveOrReject(selectedItem.value.approvalId, formData)
+      
+      selectedItem.value.status = 'disetujui'
+      showConfirmModal.value = false
+      Swal.fire({
+        icon: 'success',
+        title: 'Disetujui',
+        text: 'Reimbursement berhasil disetujui.',
+        showConfirmButton: false,
+        timer: 1500
+      })
+    }
+    fetchReimbursements()
+  } catch (error) {
+    console.error(error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: error.response?.data?.message || 'Gagal memproses'
+    })
+  }
+}
+
+const tolakAction = async (item) => {
+  try {
+    const formData = new FormData()
+    formData.append('status', 'REJECTED')
+    formData.append('rejection_reason', 'Ditolak Finance')
+    await ApiService.actionApproveOrReject(item.approvalId, formData)
+    
+    item.status = 'ditolak'
+    Swal.fire({
+      icon: 'success',
+      title: 'Ditolak',
+      text: 'Reimbursement telah ditolak.',
+      showConfirmButton: false,
+      timer: 1500
+    })
+    fetchReimbursements()
+  } catch (error) {
+    console.error(error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: error.response?.data?.message || 'Gagal menolak'
+    })
   }
 }
 
@@ -87,7 +232,7 @@ const closeSuccess = () => {
             <Search :size="14" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Cari nama / keterangan..." class="search-input" />
           </div>
-          <div class="count-badge">37 Menunggu</div>
+          <div class="count-badge">{{ pendingCount }} Menunggu</div>
         </div>
       </div>
 
@@ -97,7 +242,8 @@ const closeSuccess = () => {
             <tr>
               <th>KARYAWAN</th>
               <th>KETERANGAN</th>
-              <th>TANGGAL</th>
+              <th>TGL TRANSAKSI</th>
+              <th>DIAJUKAN PADA</th>
               <th>FILE PENDUKUNG</th>
               <th>JUMLAH</th>
               <th>STATUS</th>
@@ -117,10 +263,12 @@ const closeSuccess = () => {
               </td>
               <td class="text-dark">{{ item.title }}</td>
               <td class="text-muted">{{ item.date }}</td>
+              <td class="text-muted" style="font-size: 0.85rem;">{{ item.submitTime }}</td>
               <td>
-                <button class="btn-file">
-                  <FileText :size="12" /> {{ item.file }}
-                </button>
+                <a v-if="item.fileUrl" :href="item.fileUrl" target="_blank" class="btn-file">
+                  <FileText :size="12" /> Lihat File
+                </a>
+                <span v-else>-</span>
               </td>
               <td class="font-bold">{{ item.amount }}</td>
               <td>
@@ -131,7 +279,7 @@ const closeSuccess = () => {
               <td class="text-center">
                 <div class="action-row">
                   <template v-if="item.status === 'menunggu'">
-                    <button class="btn-action tolak">Tolak</button>
+                    <button class="btn-action tolak" @click="tolakAction(item)">Tolak</button>
                     <button class="btn-action proses" @click="openProses(item)">Proses</button>
                   </template>
                   <template v-else-if="item.status === 'disetujui'">
@@ -274,7 +422,14 @@ const closeSuccess = () => {
 .confirm-msg { font-size: 0.75rem; color: #475569; line-height: 1.5; margin-bottom: 1rem; }
 .upload-section { display: flex; flex-direction: column; gap: 0.5rem; }
 .upload-label { font-size: 0.7rem; font-weight: 700; color: #1e293b; }
-.upload-field { display: flex; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; height: 36px; }
+.upload-field { display: flex; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; height: 36px; transition: all 0.2s; }
+.upload-field.shake { animation: shake 0.5s; border-color: #ef4444 !important; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
 .upload-input-mock { flex: 1; border: none; padding: 0 0.875rem; font-size: 0.75rem; color: #94a3b8; background: #fcfdfe; }
 .upload-btn-inner { background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; width: 36px; cursor: pointer; position: relative; }
 .hidden-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }

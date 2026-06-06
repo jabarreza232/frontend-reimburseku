@@ -1,12 +1,45 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, RotateCcw, Eye, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
 
-const archives = ref([
-  { id: 'RMB-010', name: 'Budi Santoso', date: '10 Apr 2026', category: 'Makan', title: 'Makan siang tim', amount: 'Rp 150.000', status: 'dibayar' },
-  { id: 'RMB-011', name: 'Andi Wijaya', date: '08 Apr 2026', category: 'Transportasi', title: 'Bensin dinas luar', amount: 'Rp 200.000', status: 'ditolak' },
-  { id: 'RMB-012', name: 'Silviana Rodrigo', date: '05 Apr 2026', category: 'Penginapan', title: 'Hotel visit cabang', amount: 'Rp 800.000', status: 'dibayar' },
-])
+const archives = ref([])
+
+onMounted(async () => {
+  try {
+    const [reimbRes, empRes] = await Promise.all([
+      ApiService.getReimbursements(),
+      ApiService.getEmployees()
+    ])
+    
+    const listData = reimbRes.data?.data?.data || reimbRes.data?.data || []
+    const employees = empRes.data?.data?.data || empRes.data?.data || []
+    
+    const empMap = employees.reduce((acc, curr) => { acc[curr.id_employees] = curr; return acc }, {})
+
+    const allItems = listData.map(item => {
+      const emp = empMap[item.employees_id] || {}
+      return {
+        id: `RMB-${item.id_request}`,
+        name: emp.name || 'Unknown',
+        date: new Date(item.expense_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+        category: emp.position || 'Employee',
+        title: item.description || 'Pengajuan',
+        amount: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.amount),
+        status: (item.last_status || item.status || 'menunggu').toLowerCase(),
+        rawStatus: item.last_status?.toUpperCase()
+      }
+    })
+    
+    // Only show paid or rejected in arsip
+    archives.value = allItems.filter(i => i.status === 'dibayar' || i.status === 'ditolak' || i.rawStatus === 'PAID' || i.rawStatus === 'REJECTED').map(i => ({
+      ...i,
+      status: i.rawStatus === 'PAID' ? 'dibayar' : (i.rawStatus === 'REJECTED' ? 'ditolak' : i.status)
+    }))
+  } catch (error) {
+    console.error('Failed to load arsip data', error)
+  }
+})
 
 const searchQuery = ref('')
 const filterStatus = ref('Semua Status')

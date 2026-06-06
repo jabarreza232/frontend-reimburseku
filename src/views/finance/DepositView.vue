@@ -1,21 +1,85 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Plus, Search, ChevronDown, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Search, ChevronDown, Wallet } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import ApiService from '@/api/ApiService'
+import { formatRupiah } from '@/utils/format'
 
 const router = useRouter()
 
-const stats = [
-  { label: 'SALDO KAS', value: 'Rp.250.000.000', progress: 85, color: '#3b82f6', sub: '85% dari anggaran' },
-  { label: 'TELAH DIBAYARKAN', value: 'Rp.84.500.000', progress: 20, color: '#22c55e', sub: '20% dari anggaran' },
-  { label: 'MENUNGGU', value: 'Rp.15.800.000', progress: 5, color: '#f59e0b', sub: '5% dari anggaran' },
-]
-
-const transactions = ref([
-  { id: 1, type: 'Dana Masuk', source: 'Top-up dari Bank BCA pusat', amount: '+Rp.50.000.000', balance: 'Rp.250.000.000', date: '22 Okt 2025', note: 'Inject bulanan' },
-  { id: 2, name: 'Budi Santoso', type: 'Dana Keluar', source: 'Reimburse: Budi Santoso', amount: '-Rp.1.500.000', balance: 'Rp.298.500.000', date: '20 Okt 2025', note: 'Pembayaran Belanja Kantor' },
-  { id: 3, name: 'Siti Rahayu', type: 'Dana Keluar', source: 'Reimburse: Siti Rahayu', amount: '-Rp.85.000', balance: 'Rp.298.415.000', date: '19 Okt 2025', note: 'Pembayaran Grab Food' },
+const stats = ref([
+  { label: 'SALDO KAS', value: 'Rp 0', progress: 100, color: '#3b82f6', sub: 'Total Budget' },
+  { label: 'TELAH DIBAYARKAN', value: 'Rp 0', progress: 0, color: '#22c55e', sub: 'Pengeluaran' },
+  { label: 'MENUNGGU', value: 'Rp 0', progress: 0, color: '#f59e0b', sub: 'Estimasi tanggungan' },
 ])
+
+const transactions = ref([])
+
+
+
+onMounted(async () => {
+  try {
+    const [statsRes, depositRes, reimbRes] = await Promise.all([
+      ApiService.getBalanceStats(),
+      ApiService.getDeposits(),
+      ApiService.getReimbursements()
+    ])
+
+    const statsData = statsRes.data?.data || {}
+    const saldoKas = statsData.saldo_kas || 0
+    const telahDibayarkan = statsData.telah_dibayarkan || 0
+    const menunggu = statsData.menunggu || 0
+    const totalBudget = saldoKas + telahDibayarkan
+
+    stats.value[0].value = formatRupiah(saldoKas)
+    stats.value[1].value = formatRupiah(telahDibayarkan)
+    stats.value[1].progress = totalBudget > 0 ? (telahDibayarkan / totalBudget) * 100 : 0
+    stats.value[2].value = formatRupiah(menunggu)
+    stats.value[2].progress = totalBudget > 0 ? (menunggu / totalBudget) * 100 : 0
+
+    // Combine and format transactions
+    let allTx = []
+    
+    // 1. Deposits (Dana Masuk)
+    const deposits = depositRes.data?.data?.data || depositRes.data?.data || []
+    deposits.forEach(d => {
+      allTx.push({
+        id: `DEP-${d.id_deposit}`,
+        type: 'Dana Masuk',
+        source: d.bank_ref_number || 'Deposit Kas',
+        amount: `+${formatRupiah(d.amount)}`,
+        rawAmount: parseFloat(d.amount),
+        rawDate: new Date(d.transaction_date || d.created_at),
+        date: new Date(d.transaction_date || d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        note: d.notes || 'Penambahan Saldo Kas'
+      })
+    })
+
+    // 2. Reimbursements Paid (Dana Keluar)
+    const reimbursements = reimbRes.data?.data?.data || reimbRes.data?.data || []
+    reimbursements.forEach(r => {
+      if (r.last_status === 'PAID') {
+        allTx.push({
+          id: `RMB-${r.id_request}`,
+          type: 'Dana Keluar',
+          source: `Reimburse: ${r.employee_name || 'Karyawan'}`,
+          amount: `-${formatRupiah(r.amount)}`,
+          rawAmount: parseFloat(r.amount),
+          rawDate: new Date(r.expense_date || r.created_at),
+          date: new Date(r.expense_date || r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+          note: r.description || r.category_name || 'Pembayaran Reimbursement'
+        })
+      }
+    })
+
+    // Sort descending by date
+    allTx.sort((a, b) => b.rawDate - a.rawDate)
+    
+    transactions.value = allTx
+  } catch (error) {
+    console.error('Failed to load deposit data', error)
+  }
+})
 
 const searchQuery = ref('')
 const selectedMonth = ref('Januari 2025')

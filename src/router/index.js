@@ -5,15 +5,17 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/staf/masuk'
+      redirect: '/masuk'
+    },
+    
+    // ─── Single Entry Point (Login) ────────────────────────────────
+    {
+      path: '/masuk',
+      name: 'login',
+      component: () => import('../views/LoginView.vue')
     },
 
     // ─── Rute Staf ───────────────────────────────────────────────
-    {
-      path: '/staf/masuk',
-      name: 'staf-masuk',
-      component: () => import('../views/staff/LoginView.vue')
-    },
     {
       path: '/staf',
       component: () => import('../layouts/StaffLayout.vue'),
@@ -47,11 +49,6 @@ const router = createRouter({
     },
 
     // ─── Rute Admin ───────────────────────────────────────────────
-    {
-      path: '/admin/masuk',
-      name: 'admin-masuk',
-      component: () => import('../views/admin/LoginView.vue')
-    },
     {
       path: '/admin',
       component: () => import('../layouts/AdminLayout.vue'),
@@ -96,11 +93,6 @@ const router = createRouter({
 
     // ─── Rute Finance ─────────────────────────────────────────────
     {
-      path: '/finance/masuk',
-      name: 'finance-masuk',
-      component: () => import('../views/finance/LoginView.vue')
-    },
-    {
       path: '/finance',
       component: () => import('../layouts/FinanceLayout.vue'),
       children: [
@@ -138,9 +130,12 @@ const router = createRouter({
     },
 
     // ─── Redirect lama (agar link lama tidak 404) ─────────────────
-    { path: '/staff/login',   redirect: '/staf/masuk'   },
-    { path: '/admin/login',   redirect: '/admin/masuk'  },
-    { path: '/finance/login', redirect: '/finance/masuk' },
+    { path: '/staf/masuk',    redirect: '/masuk' },
+    { path: '/admin/masuk',   redirect: '/masuk' },
+    { path: '/finance/masuk', redirect: '/masuk' },
+    { path: '/staff/login',   redirect: '/masuk' },
+    { path: '/admin/login',   redirect: '/masuk' },
+    { path: '/finance/login', redirect: '/masuk' },
     { path: '/staff/dashboard',   redirect: '/staf/dasbor'   },
     { path: '/admin/dashboard',   redirect: '/admin/dasbor'  },
     { path: '/finance/dashboard', redirect: '/finance/dasbor' },

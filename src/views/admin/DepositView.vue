@@ -1,42 +1,62 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Plus, Search, ChevronDown, Archive, Wallet, Calendar } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Search, ChevronDown, Archive, Trash2, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import ApiService from '@/api/ApiService'
+import { formatRupiah } from '@/utils/format'
 
 const router = useRouter()
 
-const deposits = ref([
-  { id: 1, source: 'Kas Besar', target: 'Dana Petty Cash', amount: 'Rp 5.000.000', ref_bank: 'TRF-BCA-99128', date: '20 Jan 2025', proof: 'bukti.jpg', note: 'Top up bulanan' },
-  { id: 2, source: 'Operasional', target: 'Dana Parkir', amount: 'Rp 500.000', ref_bank: 'TRF-MDR-1102', date: '15 Jan 2025', proof: 'bukti2.jpg', note: 'Dana darurat' },
-])
+const deposits = ref([])
+
+
+
+const fetchDeposits = async () => {
+  try {
+    const res = await ApiService.getDeposits()
+    const listData = res.data?.data?.data || res.data?.data || []
+    
+    deposits.value = listData.map(d => ({
+      id: d.id_deposit,
+      source: 'Deposit Kas',
+      target: 'Reimbursement', // Based on mockup target
+      amount: formatRupiah(d.amount),
+      ref_bank: d.bank_ref_number || '-',
+      date: new Date(d.transaction_date || d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+      proof: d.transfer_receipt ? 'Lihat Bukti' : '-',
+      proofUrl: d.transfer_receipt,
+      note: d.notes || '-'
+    }))
+  } catch (error) {
+    console.error('Failed to load deposits', error)
+  }
+}
+
+onMounted(fetchDeposits)
 
 const searchQuery = ref('')
 const selectedMonth = ref('Januari 2026')
 const sortOption = ref('Sort By')
-const showModal = ref(false)
-const isSaving = ref(false)
 
-const form = ref({ source: '', target: '', amount: '', ref_bank: '', note: '' })
-
-function openAdd() {
-  form.value = { source: '', target: '', amount: '', ref_bank: '', note: '' }
-  showModal.value = true
-}
-
-async function save() {
-  isSaving.value = true
-  setTimeout(() => {
-    isSaving.value = false
-    showModal.value = false
-  }, 1000)
-}
 
 const goToArchive = () => router.push('/admin/deposit/arsip')
+
+const deleteDeposit = async (id) => {
+  if (confirm('Yakin ingin menghapus deposit ini?')) {
+    try {
+      await ApiService.deleteDeposit(id) // Assuming we add deleteDeposit to ApiService
+      fetchDeposits()
+    } catch (err) {
+      alert('Gagal menghapus deposit')
+      console.error(err)
+    }
+  }
+}
 
 const filteredDeposits = computed(() => {
   return deposits.value.filter(d => 
     d.source.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    d.target.toLowerCase().includes(searchQuery.value.toLowerCase())
+    d.ref_bank.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 </script>
@@ -93,11 +113,12 @@ const filteredDeposits = computed(() => {
               <td class="text-muted font-mono">{{ d.ref_bank }}</td>
               <td class="text-muted">{{ d.date }}</td>
               <td>
-                <button class="btn-text-sm">Lihat Bukti</button>
+                <a v-if="d.proofUrl" :href="d.proofUrl" target="_blank" class="btn-text-sm">Lihat Bukti</a>
+                <span v-else>-</span>
               </td>
               <td class="note-cell" :title="d.note">{{ d.note }}</td>
               <td class="text-center">
-                <button class="btn-icon archive-row" title="Arsipkan"><Archive :size="12" /></button>
+                <button class="btn-icon delete-row" title="Hapus" @click="deleteDeposit(d.id)"><Trash2 :size="12" /></button>
               </td>
             </tr>
           </tbody>
@@ -106,10 +127,10 @@ const filteredDeposits = computed(() => {
 
       <div class="table-footer">
         <div class="pagination">
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(90deg)" /></button>
+          <button class="page-btn"><ChevronLeft :size="12" /></button>
           <button class="page-btn active">1</button>
           <button class="page-btn">2</button>
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(-90deg)" /></button>
+          <button class="page-btn"><ChevronRight :size="12" /></button>
         </div>
       </div>
     </div>

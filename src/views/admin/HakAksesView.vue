@@ -1,23 +1,45 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Plus, Pencil, Trash2, X, Search, ChevronDown } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
 
-const roles = ref([
-  { id: 1, name: 'Super Admin', slug: 'super-admin', description: 'Akses penuh aplikasi tanpa batasan' },
-  { id: 2, name: 'Finance', slug: 'finance', description: 'Akses untuk mengelola data dan reimbursement' },
-])
+const roles = ref([])
+
+const fetchRoles = async () => {
+  try {
+    const res = await ApiService.getRoles()
+    const listData = res.data?.data?.data || res.data?.data || []
+    
+    roles.value = listData.map(r => ({
+      id: r.id_role,
+      name: r.role_name || '-',
+      description: r.description || '-',
+      slug: (r.role_name || '').toLowerCase().replace(/ /g, '-')
+    }))
+  } catch (err) {
+    console.error('Failed to load roles', err)
+  }
+}
+
+onMounted(fetchRoles)
 
 const searchQuery = ref('')
-const showModal = ref(false)
-const isEditing = ref(false)
-const isSaving = ref(false)
 
-const form = ref({ id: null, name: '', slug: '', description: '' })
 
 function openAdd() {
-  isEditing.value = false
-  form.value = { id: null, name: '', slug: '', description: '' }
-  showModal.value = true
+  // TODO: Implementasi modal tambah hak akses
+}
+
+const deleteRole = async (id) => {
+  if (confirm('Yakin ingin menghapus hak akses ini?')) {
+    try {
+      await ApiService.deleteRole(id)
+      fetchRoles()
+    } catch (err) {
+      alert('Gagal menghapus hak akses')
+      console.error(err)
+    }
+  }
 }
 
 const filteredRoles = computed(() => {
@@ -68,7 +90,7 @@ const filteredRoles = computed(() => {
               <td class="text-center">
                 <div class="action-btns">
                   <button class="btn-icon edit"><Pencil :size="12" /></button>
-                  <button class="btn-icon delete"><Trash2 :size="12" /></button>
+                  <button class="btn-icon delete" @click="deleteRole(role.id)"><Trash2 :size="12" /></button>
                 </div>
               </td>
             </tr>
@@ -78,10 +100,10 @@ const filteredRoles = computed(() => {
 
       <div class="table-footer">
         <div class="pagination">
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(90deg)" /></button>
+          <button class="page-btn"><ChevronLeft :size="12" /></button>
           <button class="page-btn active">1</button>
           <button class="page-btn">2</button>
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(-90deg)" /></button>
+          <button class="page-btn"><ChevronRight :size="12" /></button>
         </div>
       </div>
     </div>

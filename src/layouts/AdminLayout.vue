@@ -4,7 +4,10 @@ import {
   LayoutDashboard, Users, Tag, CreditCard, ShieldCheck, Wallet, LogOut
 } from 'lucide-vue-next'
 
+import { useAuthStore } from '@/stores/auth'
+
 const router = useRouter()
+const authStore = useAuthStore()
 
 const navItems = [
   { to: '/admin/dasbor',        label: 'Beranda',            icon: LayoutDashboard },
@@ -16,8 +19,8 @@ const navItems = [
 ]
 
 function logout() {
-  localStorage.removeItem('token')
-  router.push('/admin/masuk')
+  authStore.clearAuth()
+  router.push('/masuk')
 }
 </script>
 
@@ -60,8 +63,8 @@ function logout() {
         </div>
         <div class="topbar-right">
           <div class="user-profile-top">
-            <div class="avatar-circle">A</div>
-            <span class="user-name-top">Administrator</span>
+            <div class="avatar-circle">{{ authStore.user?.name?.[0]?.toUpperCase() || 'A' }}</div>
+            <span class="user-name-top">{{ authStore.user?.name || 'Administrator' }}</span>
           </div>
         </div>
       </div>

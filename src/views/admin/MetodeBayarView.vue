@@ -1,31 +1,52 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Plus, X, Search, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
 
-const methods = ref([
-  { id: 1, type: 'E-WALLET', name: 'OVO', code: '3703', status: 'Tidak Aktif' },
-  { id: 2, type: 'BANK TRANSFER', name: 'BCA', code: '111', status: 'Aktif' },
-  { id: 3, type: 'E-WALLET', name: 'GOPAY', code: '91001', status: 'Aktif' },
-  { id: 4, type: 'E-WALLET', name: 'DANA', code: '8900', status: 'Aktif' },
-  { id: 5, type: 'BANK TRANSFER', name: 'Mandiri', code: '008', status: 'Tidak Aktif' },
-  { id: 6, type: 'BANK TRANSFER', name: 'Bank BNI', code: '009', status: 'Aktif' },
-])
+const methods = ref([])
 
-const searchQuery = ref('')
-const showModal = ref(false)
-const isSaving = ref(false)
-const showSuccessModal = ref(false)
-
-const form = ref({ type: 'BANK TRANSFER', name: '', code: '' })
-
-function openAdd() {
-  form.value = { type: 'BANK TRANSFER', name: '', code: '' }
-  showModal.value = true
+const fetchProviders = async () => {
+  try {
+    const res = await ApiService.getProviders()
+    const listData = res.data?.data?.data || res.data?.data || []
+    
+    methods.value = listData.map(m => ({
+      id: m.id_provider,
+      type: m.provider_name.toLowerCase().includes('bank') ? 'BANK TRANSFER' : 'E-WALLET', // Based on name logic or if backend has a type field
+      name: m.provider_name || '-',
+      code: m.provider_code || '-',
+      status: m.status || 'Aktif' // Assuming backend returns 'Aktif' or 'Tidak Aktif' or boolean
+    }))
+  } catch (err) {
+    console.error('Failed to load providers', err)
+  }
 }
 
-function toggleStatus(id) {
+onMounted(fetchProviders)
+
+const searchQuery = ref('')
+
+
+function openAdd() {
+  // TODO: Implementasi modal tambah metode bayar
+}
+
+async function toggleStatus(id) {
   const m = methods.value.find(x => x.id === id)
-  if (m) m.status = m.status === 'Aktif' ? 'Tidak Aktif' : 'Aktif'
+  if (m) {
+    // Assuming backend endpoint /provider/{id} handles partial updates or status toggles
+    try {
+      const newStatus = m.status === 'Aktif' ? 'Tidak Aktif' : 'Aktif'
+      await ApiService.updateProvider(id, {
+        provider_name: m.name,
+        provider_code: m.code,
+        status: newStatus
+      })
+      m.status = newStatus
+    } catch (err) {
+      alert('Gagal mengubah status')
+    }
+  }
 }
 
 const filteredMethods = computed(() => {
@@ -95,10 +116,10 @@ const filteredMethods = computed(() => {
 
       <div class="table-footer">
         <div class="pagination">
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(90deg)" /></button>
+          <button class="page-btn"><ChevronLeft :size="12" /></button>
           <button class="page-btn active">1</button>
           <button class="page-btn">2</button>
-          <button class="page-btn"><ChevronDown :size="12" style="transform: rotate(-90deg)" /></button>
+          <button class="page-btn"><ChevronRight :size="12" /></button>
         </div>
       </div>
     </div>

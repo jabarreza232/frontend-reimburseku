@@ -1,47 +1,60 @@
 <script setup>
-import { RouterView } from 'vue-router'
-import { Edit2 } from 'lucide-vue-next'
+import { RouterView, useRouter } from 'vue-router'
+import { Edit2, LogOut } from 'lucide-vue-next' // Tambahkan import LogOut di sini
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const router = useRouter()
+
+// Tambahkan fungsi logout dasar agar tidak error saat diklik
+const logout = () => {
+  authStore.clearAuth() // Pastikan ini membersihkan data auth dengan benar
+  router.push('/masuk')
+}
 </script>
 
 <template>
   <div class="layout-container">
-    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-top">
         <router-link to="/staf/dasbor" class="logo">
-          <div class="logo-icon"></div>
+          <div class="logo-icon">RK</div>
           <span class="logo-text">reimburseKu</span>
         </router-link>
-        
+
         <div class="user-profile">
           <div class="avatar-container">
             <img src="https://i.pravatar.cc/150?img=32" alt="Avatar" class="avatar-img" />
             <div class="status-indicator"></div>
           </div>
-          <h3 class="user-name">{{ authStore.user?.name }}</h3>
-          <p class="user-role">{{ authStore.user?.position }}</p>
-          
+          <h3 class="user-name">{{ authStore.user?.name || 'User' }}</h3>
+          <p class="user-role">{{ authStore.user?.position || 'Staff' }}</p>
+
           <router-link to="/staf/profil" class="edit-profile-btn">
             <Edit2 :size="14" />
             <span>Edit Profile</span>
           </router-link>
         </div>
       </div>
-      
-      <!-- Decorative bottom bars -->
-      <div class="sidebar-bg-decor">
-        <div class="bar bar-1"></div>
-        <div class="bar bar-2"></div>
-        <div class="bar bar-3"></div>
-        <div class="bar bar-4"></div>
-        <div class="bar bar-5"></div>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-footer">
+          <button class="nav-item logout-btn" @click="logout">
+            <LogOut :size="20" class="logout-icon" />
+            <span>Keluar</span>
+          </button>
+        </div>
+
+        <div class="sidebar-bg-decor">
+          <div class="bar bar-1"></div>
+          <div class="bar bar-2"></div>
+          <div class="bar bar-3"></div>
+          <div class="bar bar-4"></div>
+          <div class="bar bar-5"></div>
+        </div>
       </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="main-content">
       <div class="page-container">
         <router-view />
@@ -51,6 +64,7 @@ const authStore = useAuthStore()
 </template>
 
 <style scoped>
+/* Struktur Layout */
 .layout-container {
   display: flex;
   min-height: 100vh;
@@ -60,11 +74,13 @@ const authStore = useAuthStore()
 
 .sidebar {
   width: 250px;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary, #1e293b);
+  /* Fallback color jika variabel kosong */
   color: white;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  /* Sekarang hanya membagi jarak antara Top dan Bottom */
   position: fixed;
   top: 0;
   left: 0;
@@ -80,6 +96,13 @@ const authStore = useAuthStore()
   align-items: center;
 }
 
+/* Bagian Bawah Sidebar (Footer & Decor) */
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -90,10 +113,16 @@ const authStore = useAuthStore()
 }
 
 .logo-icon {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background-color: white;
-  border-radius: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  font-weight: 800;
+  font-size: 0.8rem;
 }
 
 .logo-text {
@@ -129,7 +158,7 @@ const authStore = useAuthStore()
   width: 14px;
   height: 14px;
   background-color: #22c55e;
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--color-primary, #1e293b);
   border-radius: 50%;
 }
 
@@ -151,7 +180,7 @@ const authStore = useAuthStore()
   align-items: center;
   gap: 0.5rem;
   background-color: white;
-  color: var(--color-primary);
+  color: var(--color-primary, #1e293b);
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-size: 0.875rem;
@@ -165,11 +194,75 @@ const authStore = useAuthStore()
   transform: translateY(-1px);
 }
 
+/* Nav Item Standar */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Styling Khusus Tombol Logout */
+.sidebar-footer {
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+  position: relative;
+  z-index: 2;
+  /* Memastikan tombol bisa diklik di atas dekorasi */
+}
+
+.logout-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.logout-btn:active {
+  transform: scale(0.97);
+}
+
+.logout-icon {
+  transition: transform 0.3s ease;
+}
+
+.logout-btn:hover .logout-icon {
+  transform: translateX(3px);
+}
+
+/* Dekorasi Bawah */
 .sidebar-bg-decor {
   display: flex;
   align-items: flex-end;
-  height: 100px;
-  opacity: 0.2;
+  height: 60px;
+  /* Diperkecil sedikit agar tidak menabrak tombol */
+  opacity: 0.15;
   padding: 0 1rem;
   gap: 4px;
 }
@@ -180,24 +273,39 @@ const authStore = useAuthStore()
   border-radius: 4px 4px 0 0;
 }
 
-.bar-1 { height: 40%; }
-.bar-2 { height: 70%; }
-.bar-3 { height: 100%; }
-.bar-4 { height: 60%; }
-.bar-5 { height: 80%; }
+.bar-1 {
+  height: 40%;
+}
 
+.bar-2 {
+  height: 70%;
+}
+
+.bar-3 {
+  height: 100%;
+}
+
+.bar-4 {
+  height: 60%;
+}
+
+.bar-5 {
+  height: 80%;
+}
+
+/* Main Content */
 .main-content {
   flex: 1;
-  margin-left: 250px; /* offset for fixed sidebar */
+  margin-left: 250px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .page-container {
-  padding: 2rem 3rem;
+  padding: 2.5rem 4%;
   flex: 1;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
 }
@@ -206,9 +314,11 @@ const authStore = useAuthStore()
   .sidebar {
     width: 200px;
   }
+
   .main-content {
     margin-left: 200px;
   }
+
   .page-container {
     padding: 1.5rem;
   }

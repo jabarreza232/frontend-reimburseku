@@ -1,13 +1,23 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Plus, Car, UtensilsCrossed, ParkingMeter, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Plus, Car, UtensilsCrossed, ParkingMeter, MoreHorizontal, ChevronLeft, ChevronRight, Calendar, Check, X, Clock, CheckCircle2, Zap } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { formatRupiah, mapStatusToFrontend } from '@/utils/format'
+import ApiService from '@/api/ApiService'
 
 const router = useRouter()
 
-// Filter status aktif
+// 1. Set Default Filter ke Bulan & Tahun Saat Ini (Otomatis)
+const dateNow = new Date()
+const currentYear = dateNow.getFullYear()
+const currentMonth = dateNow.getMonth() + 1 // getMonth() dimulai dari 0
+
 const filterAktif = ref('semua')
-const filterBulan = ref('2025-09')
+const filterBulan = ref(`${currentYear}-${currentMonth.toString().padStart(2, '0')}`) // Format: YYYY-MM
+const showModalBulan = ref(false)
+const tempBulan = ref(currentMonth)
+const tempTahun = ref(currentYear)
+const isLoading = ref(true)
 
 const filterList = [
   { key: 'semua',    label: 'Semua',   warna: '' },
@@ -17,33 +27,121 @@ const filterList = [
   { key: 'dibayar',  label: 'Dibayar', warna: '#22c55e' },
 ]
 
-const semuaData = ref([
-  { id: 1, judul: 'Grab Food bulan ini',      status: 'dibayar',  catatan: '',                         jumlah: 'Rp.300.000',   tanggal: '26/10/2025' },
-  { id: 2, judul: 'Parkir Motor Kendaraan',   status: 'ditolak',  catatan: 'Nota Terlampir tidak valid', jumlah: 'Rp.25.000',   tanggal: '25/10/2025' },
-  { id: 3, judul: 'Tiket Bus',                status: 'menunggu', catatan: '',                         jumlah: 'Rp.300.000',   tanggal: '24/10/2025' },
-  { id: 4, judul: 'Perbaikan Laptop',         status: 'diterima', catatan: '',                         jumlah: 'Rp.500.000',   tanggal: '23/10/2025' },
-  { id: 5, judul: 'Perbaiki AC',              status: 'dibayar',  catatan: '',                         jumlah: 'Rp.1.000.000', tanggal: '20/10/2025' },
-])
-
-// Pagination
+// Data State
+const semuaData = ref([])
 const halamanAktif = ref(1)
-const itemPerHalaman = 5
-const totalHalaman = 5 // dummy 5 halaman
+const totalHalaman = ref(1)
 
+// Helper Functions
+
+
+
+
+// 2. Modifikasi Fungsi Fetch untuk menggunakan API By Month
+const fetchReimbursements = async (page = 1) => {
+  isLoading.value = true
+  try {
+    // Memanggil endpoint baru dengan mengirimkan parameter bulan
+    const res = await ApiService.getMyReimbursementsByMonth(page, filterBulan.value)
+    
+    const responseData = res.data?.data || [] 
+    const metaData = res.data?.meta || {}
+
+    semuaData.value = responseData.map(item => ({
+      id: item.id_request,
+      kategori: item.category_name || 'Lain-lain',
+      judul: item.category_name || 'Pengajuan Reimburse',
+      status: mapStatusToFrontend(item.last_status),
+      catatan: item.rejection_reason || item.description || '',
+      jumlahAsli: item.amount, 
+      jumlah: formatRupiah(item.amount),
+      tanggal: new Date(item.expense_date).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }))
+
+    halamanAktif.value = metaData.current_page || 1
+    totalHalaman.value = metaData.last_page || 1
+
+  } catch (err) {
+    console.error('Failed to fetch reimbursements:', err)
+  } finally{
+    isLoading.value = false 
+  }
+}
+
+// Panggil API saat komponen pertama kali dimuat
+onMounted(() => {
+  fetchReimbursements(halamanAktif.value)
+})
+
+// Computed Filter Status
 const dataFiltered = computed(() => {
   if (filterAktif.value === 'semua') return semuaData.value
   return semuaData.value.filter(d => d.status === filterAktif.value)
 })
 
-// Stat kategori (kanan)
-const kategoriStats = [
-  { label: 'Transportasi', jumlah: 'Rp.100.000', ikon: Car,             bg: '#22c55e' },
-  { label: 'Makanan',      jumlah: 'Rp.200.000', ikon: UtensilsCrossed, bg: '#ec4899' },
-  { label: 'Parkir',       jumlah: 'Rp.500.000', ikon: ParkingMeter,    bg: '#a855f7' },
-  { label: 'Dan lain-lain',jumlah: 'Rp.2.000.000',ikon: MoreHorizontal, bg: '#3b82f6' },
+// Statistik Dinamis berdasarkan data yang di-fetch
+const kategoriStats = computed(() => {
+  const stats = {
+    'Transportasi': { label: 'Transportasi', total: 0, ikon: Car, bg: '#22c55e' },
+    'Makanan': { label: 'Makanan', total: 0, ikon: UtensilsCrossed, bg: '#ec4899' },
+    'Parkir': { label: 'Parkir', total: 0, ikon: ParkingMeter, bg: '#a855f7' },
+    'Lain-lain': { label: 'Dan lain-lain', total: 0, ikon: MoreHorizontal, bg: '#3b82f6' }
+  }
+
+  dataFiltered.value.forEach(item => {
+    const namaKategori = item.kategori.toLowerCase()
+    if (namaKategori.includes('transport')) stats['Transportasi'].total += item.jumlahAsli
+    else if (namaKategori.includes('makan') || namaKategori.includes('minum')) stats['Makanan'].total += item.jumlahAsli
+    else if (namaKategori.includes('parkir')) stats['Parkir'].total += item.jumlahAsli
+    else stats['Lain-lain'].total += item.jumlahAsli
+  })
+
+  return Object.values(stats).map(s => ({
+    label: s.label,
+    jumlah: formatRupiah(s.total),
+    ikon: s.ikon,
+    bg: s.bg
+  }))
+})
+
+// Fungsi Paginasi
+function gantiHalaman(h) {
+  if (h >= 1 && h <= totalHalaman.value) {
+    fetchReimbursements(h)
+  }
+}
+
+// Konfigurasi Bulan
+const namaBulanLengkap = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+const labelBulanTampil = computed(() => {
+  const [thn, bln] = filterBulan.value.split('-')
+  return `${namaBulanLengkap[parseInt(bln) - 1]} ${thn}`
+})
+
+const bulanModalList = [
+  { val: 1, label: 'Jan' }, { val: 2, label: 'Feb' }, { val: 3, label: 'Mar' }, { val: 4, label: 'Apr' },
+  { val: 5, label: 'Mei' }, { val: 6, label: 'Jun' }, { val: 7, label: 'Jul' }, { val: 8, label: 'Agt' },
+  { val: 9, label: 'Sep' }, { val: 10, label: 'Okt' }, { val: 11, label: 'Nov' }, { val: 12, label: 'Des' }
 ]
 
-// Badge info per status
+function bukaModalBulan() {
+  const [thn, bln] = filterBulan.value.split('-')
+  tempTahun.value = parseInt(thn)
+  tempBulan.value = parseInt(bln)
+  showModalBulan.value = true
+}
+
+// 3. Modifikasi Terapkan Filter
+function terapkanFilterBulan() {
+  const blnFormat = tempBulan.value.toString().padStart(2, '0')
+  filterBulan.value = `${tempTahun.value}-${blnFormat}`
+  showModalBulan.value = false
+  
+  // Panggil ulang API dari halaman 1 menggunakan bulan yang baru dipilih
+  fetchReimbursements(1)
+}
+
+// UI Helpers
 function getBadgeClass(status) {
   switch (status) {
     case 'dibayar':  return 'chip chip-bayar'
@@ -56,17 +154,38 @@ function getBadgeClass(status) {
 
 function getLabelStatus(status) {
   const map = { dibayar: 'Dibayar', ditolak: 'Ditolak', menunggu: 'Menunggu', diterima: 'Diterima' }
-  return map[status] || status
+  return map[status.toLowerCase()] || status
 }
 
-function gantiHalaman(h) {
-  if (h >= 1 && h <= totalHalaman) halamanAktif.value = h
+const getStatusIcon = (status) => {
+  const s = status.toLowerCase()
+  if (s === 'menunggu') return Clock
+  if (s === 'diterima' || s === 'disetujui') return CheckCircle2
+  if (s === 'dibayar') return Zap
+  if (s === 'ditolak') return X
+  return Clock
+}
+
+const getStatusPillClass = (status) => {
+  const s = status.toLowerCase()
+  if (s === 'menunggu') return 'pill-warning'
+  if (s === 'diterima' || s === 'disetujui') return 'pill-info'
+  if (s === 'dibayar') return 'pill-success'
+  if (s === 'ditolak') return 'pill-danger'
+  return ''
+}
+
+const getBorderColor = (kategori) => {
+  if (!kategori) return '#3B82F6' // Default Lain-lain
+  const name = kategori.toLowerCase()
+  if (name.includes('transport')) return '#22c55e' // Hijau
+  if (name.includes('makan') || name.includes('minum')) return '#ec4899' // Pink
+  if (name.includes('parkir')) return '#a855f7' // Ungu
+  return '#3B82F6' // Biru untuk Lain-lain
 }
 </script>
-
 <template>
   <div class="dasbor-staf">
-    <!-- Header & Tombol Tambah -->
     <div class="header-utama">
       <h2 class="judul-halaman">Dashboard Staff</h2>
       <button class="btn btn-primary tombol-tambah" @click="router.push('/staf/reimbursement/tambah')">
@@ -75,13 +194,12 @@ function gantiHalaman(h) {
     </div>
 
     <div class="grid-dasbor">
-      <!-- Kolom kiri: Riwayat -->
       <div class="kolom-kiri">
         <div class="section-title-row">
           <h3 class="judul-seksi">Riwayat Reimbursement</h3>
         </div>
 
-        <div class="filter-bulan-wrap">
+        <div class="filter-kiri-wrap">
           <div class="filter-chip-row">
             <button
               v-for="f in filterList"
@@ -95,81 +213,272 @@ function gantiHalaman(h) {
             </button>
           </div>
 
-          <div class="pilih-bulan">
-            <input type="month" v-model="filterBulan" class="input-bulan" />
-          </div>
+          <button class="btn-tanggal-full" @click="bukaModalBulan">
+            <span>{{ labelBulanTampil }}</span>
+            <Calendar :size="18" class="ikon-kalender" />
+          </button>
         </div>
 
-        <!-- Daftar item -->
-        <div class="daftar-container">
-          <div v-if="dataFiltered.length === 0" class="kosong-teks">
+   <div class="daftar-container">
+          <div v-if="isLoading" class="loading-overlay">
+            <div class="spinner"></div>
+            <p class="loading-teks">Memuat riwayat...</p>
+          </div>
+
+          <div v-else-if="dataFiltered.length === 0" class="kosong-teks">
             Tidak ada data untuk filter ini.
           </div>
 
-          <div
-            v-for="item in dataFiltered"
-            :key="item.id"
-            class="item-riwayat"
-            @click="router.push('/staf/reimbursement/' + item.id)"
-          >
-            <div class="item-kiri">
-              <p class="item-judul">{{ item.judul }}</p>
-              <div class="item-bawah">
-                <span :class="getBadgeClass(item.status)">{{ getLabelStatus(item.status) }}</span>
-                <span v-if="item.catatan" class="item-catatan">{{ item.catatan }}</span>
+          <template v-else>
+            <!-- 1. BUNGKUS DAFTAR ITEM DENGAN CLASS INI -->
+            <div class="daftar-list reimbursement-cards">
+              <div
+                v-for="item in dataFiltered"
+                :key="item.id"
+                class="reimbursement-card"
+                :style="{ borderRightColor: getBorderColor(item.kategori) }"
+                @click="router.push('/staf/reimbursement/' + item.id)"
+              >
+                <div class="card-content">
+                  <div class="card-info">
+                    <h3 class="card-title">{{ item.judul }}</h3>
+                    
+                    <div class="status-badge-container">
+                      <span class="status-pill" :class="getStatusPillClass(item.status)">
+                        <component :is="getStatusIcon(item.status)" :size="12" class="status-icon" />
+                        {{ getLabelStatus(item.status) }}
+                      </span>
+                      <span v-if="item.catatan && item.status.toLowerCase() === 'ditolak'" class="status-reason">{{ item.catatan }}</span>
+                    </div>
+                    
+                    <div class="amount">{{ item.jumlah }}</div>
+                  </div>
+                  <div class="date">{{ item.tanggal }}</div>
+                </div>
               </div>
-              <p class="item-jumlah">{{ item.jumlah }}</p>
             </div>
-            <div class="item-kanan">
-              <span class="item-tanggal">{{ item.tanggal }}</span>
-            </div>
-          </div>
 
-          <!-- Pagination -->
-          <div class="paginasi">
-            <button class="btn-paging" @click="gantiHalaman(halamanAktif - 1)" :disabled="halamanAktif === 1">
-              <ChevronLeft :size="16" />
-            </button>
-            <button
-              v-for="h in totalHalaman"
-              :key="h"
-              class="btn-paging"
-              :class="{ 'paging-aktif': halamanAktif === h }"
-              @click="gantiHalaman(h)"
-            >{{ h }}</button>
-            <button class="btn-paging" @click="gantiHalaman(halamanAktif + 1)" :disabled="halamanAktif === totalHalaman">
-              <ChevronRight :size="16" />
-            </button>
-          </div>
+            <!-- 2. PAGINASI AKAN MENGISI SISA BAGIAN BAWAH -->
+            <div class="paginasi">
+              <button class="btn-paging" @click="gantiHalaman(halamanAktif - 1)" :disabled="halamanAktif === 1">
+                <ChevronLeft :size="16" />
+              </button>
+              <button
+                v-for="h in totalHalaman"
+                :key="h"
+                class="btn-paging"
+                :class="{ 'paging-aktif': halamanAktif === h }"
+                @click="gantiHalaman(h)"
+              >{{ h }}</button>
+              <button class="btn-paging" @click="gantiHalaman(halamanAktif + 1)" :disabled="halamanAktif === totalHalaman">
+                <ChevronRight :size="16" />
+              </button>
+            </div>
+          </template>
         </div>
       </div>
 
-      <!-- Kolom kanan: Statistik -->
       <div class="kolom-kanan">
         <h2 class="judul-seksi">Statistik dan Laporan</h2>
+     <div class="grid-statistik">
+  <div v-for="s in kategoriStats" :key="s.label" class="kartu-stat" :style="{ backgroundColor: s.bg }">
+    <div class="stat-ikon">
+      <component :is="s.ikon" :size="28" />
+    </div>
+    <div class="stat-info">
+      <p class="stat-label">{{ s.label }}</p>
+      <p class="stat-jumlah">{{ s.jumlah }}</p>
+    </div>
+  </div>
+</div>
+      </div>
+    </div>
 
-        <div class="grid-statistik">
-          <div
-            v-for="s in kategoriStats"
-            :key="s.label"
-            class="kartu-stat"
-            :style="{ backgroundColor: s.bg }"
+    <div v-if="showModalBulan" class="modal-backdrop" @click.self="showModalBulan = false">
+      <div class="modal-box">
+        <h3 class="modal-judul">Pilih Bulan</h3>
+        
+        <div class="modal-tahun-kontrol">
+          <button class="btn-kontrol-tahun" @click="tempTahun--"><ChevronLeft :size="18"/></button>
+          <span class="label-tahun">{{ tempTahun }}</span>
+          <button class="btn-kontrol-tahun" @click="tempTahun++"><ChevronRight :size="18"/></button>
+        </div>
+
+        <div class="grid-bulan">
+          <button
+            v-for="b in bulanModalList"
+            :key="b.val"
+            class="btn-bulan-item"
+            :class="{ 'aktif': tempBulan === b.val }"
+            @click="tempBulan = b.val"
           >
-            <div class="stat-ikon">
-              <component :is="s.ikon" :size="28" />
-            </div>
-            <div class="stat-info">
-              <p class="stat-label">{{ s.label }}</p>
-              <p class="stat-jumlah">{{ s.jumlah }}</p>
-            </div>
-          </div>
+            {{ b.label }}
+          </button>
+        </div>
+
+        <div class="modal-aksi">
+          <button class="btn-batal" @click="showModalBulan = false">Batal</button>
+          <button class="btn-terapkan" @click="terapkanFilterBulan">Terapkan</button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <style scoped>
+/* Struktur Baru Filter Kiri */
+.filter-kiri-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Tombol Tanggal Sesuai UI Foto */
+.btn-tanggal-full {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  border: 1.5px solid #60a5fa; /* Biru terang sesuai foto */
+  color: #3b82f6;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-tanggal-full:hover {
+  background-color: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.ikon-kalender {
+  color: #60a5fa;
+}
+
+/* --- MODAL BULAN --- */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+.modal-box {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 340px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-judul {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--color-text-main);
+}
+
+.modal-tahun-kontrol {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.btn-kontrol-tahun {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-kontrol-tahun:hover {
+  color: var(--color-primary);
+}
+
+.label-tahun {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--color-text-main);
+}
+
+.grid-bulan {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn-bulan-item {
+  background: white;
+  border: 1px solid var(--color-border);
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--color-text-main);
+}
+
+.btn-bulan-item:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-bulan-item.aktif {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.modal-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-batal {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-terapkan {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: var(--color-primary, #3b82f6);
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn-terapkan:hover {
+  opacity: 0.9;
+}
 .dasbor-staf {
   display: flex;
   flex-direction: column;
@@ -189,8 +498,8 @@ function gantiHalaman(h) {
 /* Grid utama */
 .grid-dasbor {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 2rem;
   align-items: start;
 }
 
@@ -293,90 +602,181 @@ function gantiHalaman(h) {
   border-color: var(--color-primary);
 }
 
-/* Daftar */
 .daftar-container {
   background: white;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-}
-
-.item-riwayat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.item-riwayat:last-of-type {
-  border-bottom: none;
-}
-
-.item-riwayat:hover {
-  background-color: #f8fafc;
-}
-
-.item-kiri {
+  position: relative; 
+  min-height: 300px; /* Menjaga tinggi kotak agar tidak menyusut saat loading */
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+}
+.daftar-list {
+  flex: 1; /* Memaksa elemen ini mendorong paginasi ke paling bawah */
+  display: flex;
+  flex-direction: column;
+}
+/* --- CSS LOADING SPINNER --- */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8); /* Semi transparan putih */
+  backdrop-filter: blur(2px); /* Efek blur pada background di belakangnya */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
 }
 
-.item-judul {
-  font-size: 0.9375rem;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0; /* Warna trek lingkaran abu-abu terang */
+  border-top: 4px solid var(--color-primary, #3b82f6); /* Warna garis berputar */
+  border-radius: 50%;
+  animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+  margin-bottom: 1rem;
+}
+
+.loading-teks {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* Animasi putaran 360 derajat */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+/* Cards layout */
+.reimbursement-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  max-height: 550px;
+  overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+.reimbursement-cards::-webkit-scrollbar {
+  width: 6px;
+}
+.reimbursement-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reimbursement-cards::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.reimbursement-cards::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.reimbursement-card {
+  display: flex;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
+  border-right-width: 6px;
+  border-right-style: solid;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.reimbursement-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-content {
+  padding: 1.25rem 1.5rem;
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: var(--color-text-main);
+  color: #111827;
 }
 
-.item-bawah {
+.status-badge-container {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.item-catatan {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-.item-jumlah {
-  font-size: 1.0625rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-top: 0.25rem;
-}
-
-.item-kanan {
-  text-align: right;
-  flex-shrink: 0;
-  padding-left: 1rem;
-}
-
-.item-tanggal {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-/* Chip status */
-.chip {
+.status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.175rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border: 1px solid transparent;
 }
 
-.chip-bayar   { background: #dcfce7; color: #166534; }
-.chip-tolak   { background: #fee2e2; color: #b91c1c; }
-.chip-menunggu{ background: #fef3c7; color: #d97706; }
-.chip-diterima{ background: #dbeafe; color: #1d4ed8; }
+.pill-success {
+  background-color: #ECFDF5;
+  color: #10B981;
+  border-color: #A7F3D0;
+}
+
+.pill-danger {
+  background-color: #FEF2F2;
+  color: #EF4444;
+  border-color: #FECACA;
+}
+
+.pill-warning {
+  background-color: #FFFBEB;
+  color: #F59E0B;
+  border-color: #FDE68A;
+}
+
+.pill-info {
+  background-color: #EFF6FF;
+  color: #3B82F6;
+  border-color: #BFDBFE;
+}
+
+.status-reason {
+  font-size: 0.8rem;
+  color: #9CA3AF;
+}
+
+.amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.date {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  white-space: nowrap;
+}
 
 /* Paginasi */
 .paginasi {
@@ -386,6 +786,8 @@ function gantiHalaman(h) {
   gap: 0.375rem;
   padding: 1rem;
   border-top: 1px solid #f1f5f9;
+  margin-top: auto; 
+  background: white;
 }
 
 .btn-paging {
@@ -424,6 +826,7 @@ function gantiHalaman(h) {
   text-align: center;
   color: var(--color-text-muted);
   font-size: 0.875rem;
+  margin: auto;
 }
 
 /* ─── Kolom kanan: Statistik ─── */

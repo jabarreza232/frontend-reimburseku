@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Zap, BarChart3, ShieldCheck, ArrowRight } from 'lucide-vue-next'
-import AuthService from '@/api/AuthService'
+import { Zap, BarChart3, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-vue-next'
+import AuthService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
 const router = useRouter()
 const isLoading = ref(false)
@@ -23,11 +23,17 @@ async function handleLogin() {
     })
 
     // 1. Simpan Token
-    authStore.setToken(res.data.token)
+    authStore.setAuthData(res.data)
 
-    // 2. Simpan Data User
-    authStore.setUser(res.data.user)
-    router.push('/staf/dasbor')
+    // 3. Redirect berdasarkan role
+    const roleSlug = res.data.role.slug
+    if (roleSlug === 'admin') {
+      router.push('/admin/dasbor')
+    } else if (roleSlug === 'finance-staff') { // <--- Tambahkan else di sini
+      router.push('/finance/dasbor')
+    } else {
+      router.push('/staf/dasbor')
+    }
 
   } catch (err) {
     errorMsg.value = err.response?.data?.message || 'Email atau password salah.'
@@ -76,12 +82,12 @@ async function handleLogin() {
       <div class="login-card">
         <div class="login-header">
           <h2>Selamat Datang!</h2>
-          <p>Lanjutkan ke Dashboard Staff (Mode Demo)</p>
+          <p>Masuk ke portal ReimburseKu</p>
         </div>
         <form @submit.prevent="handleLogin">
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input v-model="email" type="email" class="form-control" placeholder="finance@example.com" required />
+            <input v-model="email" type="email" class="form-control" placeholder="nama@email.com" required />
           </div>
 
           <div class="form-group">
@@ -247,6 +253,35 @@ async function handleLogin() {
 
 .login-header p {
   color: var(--color-text-muted);
+}
+
+.input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.input-wrap .form-control {
+  padding-right: 2.75rem;
+}
+
+.eye-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.eye-btn:hover {
+  color: var(--color-text-main);
 }
 
 .login-btn {

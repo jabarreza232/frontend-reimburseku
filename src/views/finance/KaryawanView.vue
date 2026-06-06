@@ -1,13 +1,30 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, Eye, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
 
-const karyawan = ref([
-  { id: 'KRY-001', nama: 'Silviana Rodrigo', email: 'silviana@company.com', jabatan: 'Staff Marketing', departemen: 'Marketing', totalPengajuan: 5, totalAmount: 'Rp 730.000' },
-  { id: 'KRY-002', nama: 'Budi Santoso', email: 'budi@company.com', jabatan: 'Staff IT', departemen: 'IT', totalPengajuan: 3, totalAmount: 'Rp 285.000' },
-  { id: 'KRY-003', nama: 'Andi Wijaya', email: 'andi@company.com', jabatan: 'Senior Engineer', departemen: 'Engineering', totalPengajuan: 8, totalAmount: 'Rp 4.200.000' },
-  { id: 'KRY-004', nama: 'Rina Melati', email: 'rina@company.com', jabatan: 'Staff Finance', departemen: 'Finance', totalPengajuan: 2, totalAmount: 'Rp 120.000' },
-])
+const karyawan = ref([])
+
+onMounted(async () => {
+  try {
+    const res = await ApiService.getEmployees()
+    const listData = res.data?.data?.data || res.data?.data || []
+    
+    karyawan.value = listData
+      .filter(emp => emp.role_id === 1) // Hanya tampilkan data Staff
+      .map(emp => ({
+      id: emp.id_employees,
+      nama: emp.name || '-',
+      email: emp.email || '-',
+      jabatan: emp.position || '-',
+      departemen: emp.position || '-', // fallback since backend might not have separate department field
+      totalPengajuan: emp.reimbursement_requests_count || 0,
+      totalAmount: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(emp.reimbursement_requests_sum_amount || 0)
+    }))
+  } catch (error) {
+    console.error('Failed to load employees', error)
+  }
+})
 
 const searchQuery = ref('')
 const filtered = computed(() => {

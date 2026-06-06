@@ -15,4 +15,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'chart-vendor': ['vue3-apexcharts', 'apexcharts'],
+          'ui-vendor': ['lucide-vue-next', 'sweetalert2', 'axios']
+        }
+      }
+    }
+  }
 })

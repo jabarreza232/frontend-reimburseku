@@ -1,28 +1,73 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronLeft, Wallet, Calendar, Plus, Upload } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService'
+import Swal from 'sweetalert2'
 
 const router = useRouter()
 
 const form = ref({
   source: 'Bank BCA - 1231423',
   target: 'Reimbursement',
-  date: '28 Januari 2026',
-  ref_bank: '1793 1321 4241 3324',
-  amount: '2.000.000',
-  note: 'top up bulan januari 2025',
+  date: '',
+  ref_bank: '',
+  amount: '',
+  note: '',
   proof: null
 })
 
 const isSaving = ref(false)
 
+const handleFileUpload = (e) => {
+  const file = e.target.files[0]
+  if (file) {
+    form.value.proof = file
+  }
+}
+
 async function submit() {
+  if (!form.value.amount || !form.value.date || !form.value.ref_bank) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Perhatian',
+      text: 'Harap isi field yang wajib'
+    })
+    return
+  }
+  
   isSaving.value = true
-  setTimeout(() => {
-    isSaving.value = false
+  try {
+    const formData = new FormData()
+    formData.append('bank_ref_number', form.value.ref_bank)
+    const cleanTotal = form.value.amount.replace(/[^0-9]/g, '')
+    formData.append('amount', cleanTotal)
+    formData.append('transaction_date', form.value.date)
+    formData.append('source_fund_id', 1) // default for now, could be dynamic
+    formData.append('notes', form.value.note)
+    if (form.value.proof) {
+      formData.append('transfer_receipt', form.value.proof)
+    }
+
+    await ApiService.saveDeposit(formData)
+    Swal.fire({
+      icon: 'success',
+      title: 'Berhasil!',
+      text: 'Deposit berhasil ditambahkan!',
+      showConfirmButton: false,
+      timer: 1500
+    })
     router.push('/finance/deposit')
-  }, 1000)
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: err.response?.data?.message || 'Gagal menyimpan deposit'
+    })
+    console.error(err)
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 
@@ -65,7 +110,7 @@ async function submit() {
               <div class="form-group">
                 <label>Tanggal</label>
                 <div class="input-with-icon">
-                  <input v-model="form.date" type="text" placeholder="Pilih Tanggal" />
+                  <input v-model="form.date" type="date" placeholder="Pilih Tanggal" required />
                   <Calendar :size="16" class="inner-icon" />
                 </div>
               </div>
@@ -90,8 +135,8 @@ async function submit() {
                 <label class="mt-4">Upload Bukti Transfer <span class="req">*</span></label>
                 <div class="upload-area">
                   <Upload :size="24" class="upload-icon" />
-                  <p class="upload-hint">bca_32183183.jpg terpilih</p>
-                  <input type="file" class="file-input" />
+                  <p class="upload-hint">{{ form.proof ? form.proof.name : 'Pilih file (JPG/PDF)' }}</p>
+                  <input type="file" class="file-input" @change="handleFileUpload" />
                 </div>
               </div>
               <div class="form-group">
