@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import ApiService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
 import { ArrowLeft } from 'lucide-vue-next'
+import Swal from 'sweetalert2'
 
 const isLoadingProviders = ref(true)
 const authStore = useAuthStore()
@@ -124,7 +125,11 @@ const saveProfile = async () => {
   }
 
   if (errorMessages.length > 0) {
-    alert("Mohon perbaiki data berikut:\n\n- " + errorMessages.join('\n- '))
+    Swal.fire({
+      icon: 'warning',
+      title: 'Perhatian',
+      html: `Mohon perbaiki data berikut:<br><br>- ` + errorMessages.join('<br>- ')
+    })
     return // Hentikan fungsi di sini, jangan lanjut ke API
   }
 
@@ -161,9 +166,12 @@ const saveProfile = async () => {
       })
     }
 
-    alert('Profil berhasil diperbarui')
+    Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Profil berhasil diperbarui', showConfirmButton: false, timer: 1500 })
+    setTimeout(() => {
+      window.location.reload()
+    }, 1500)
   } catch (error) {
-    alert(error.response?.data?.message || 'Gagal memperbarui profil')
+    Swal.fire({ icon: 'error', title: 'Gagal', text: error.response?.data?.message || 'Gagal memperbarui profil' })
     console.error(error)
   } finally {
     isSaving.value = false
@@ -172,21 +180,12 @@ const saveProfile = async () => {
 </script>
 
 <template>
-  <div class="profile-page">
-
-    <div class="profile-header-wrapper">
-      <button class="back-btn" @click="router.push('/staf/dasbor')">
-        <ArrowLeft :size="20" />
-      </button>
-      <div class="profile-title-wrapper">
-        <h1 class="page-title">Akun Profil</h1>
-        <p class="text-muted">Manage profile accounts</p>
-      </div>
-    </div>
-
-    <div class="profile-layout">
+  <div class="profile-page">    <div class="profile-layout">
       <div class="form-card card">
         <div class="section-title-wrap">
+          <button class="back-btn-inline" @click="router.push('/staf/dasbor')" title="Kembali">
+            <ArrowLeft :size="18" />
+          </button>
           <div class="section-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -197,7 +196,7 @@ const saveProfile = async () => {
           <h3 class="section-title">Informasi Akun</h3>
         </div>
 
-        <div class="form-grid mb-6">
+        <div class="form-grid" style="margin-bottom: 1rem;">
           <div class="form-group">
             <label class="form-label">Nama</label>
             <input v-model="user.nama" type="text" class="form-control" />
@@ -233,7 +232,7 @@ const saveProfile = async () => {
 
           <div class="form-group col-span-2">
             <label class="form-label">Alamat Tinggal</label>
-            <textarea v-model="user.alamat" class="form-control" rows="3"
+            <textarea v-model="user.alamat" class="form-control" rows="1" style="min-height: 46px;"
               placeholder="Tuliskan alamat lengkap tinggal Anda..."></textarea>
           </div>
         </div>
@@ -249,7 +248,7 @@ const saveProfile = async () => {
           <h3 class="section-title">Informasi Penarikan Dana</h3>
         </div>
 
-        <div class="form-grid mb-6">
+        <div class="form-grid" style="margin-bottom: 1rem;">
           <div class="form-group">
             <label class="form-label">Metode Pembayaran</label>
 
@@ -312,7 +311,7 @@ const saveProfile = async () => {
           <h4 class="preview-name">{{ user.nama || '-' }}</h4>
           <span class="badge badge-success">Aktif</span>
 
-          <div class="preview-details mt-6">
+          <div class="preview-details mt-4">
             <div class="preview-item">
               <span class="preview-label">Email</span>
               <span class="preview-val">{{ user.email || '-' }}</span>
@@ -337,7 +336,7 @@ const saveProfile = async () => {
               <span class="preview-val alamat-preview-text">{{ user.alamat || '-' }}</span>
             </div>
             <div class="preview-item">
-              <span class="preview-label">{{ accountLabel }} / E-Wallet</span>
+              <span class="preview-label">{{ accountLabel }} </span>
               <span class="preview-val">
                 {{ getProviderName }} - {{ user.rekening || '-' }}
                 <span v-if="user.nama_pemilik">
@@ -355,23 +354,16 @@ const saveProfile = async () => {
 </template>
 
 <style scoped>
-.profile-header-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1.25rem;
-  margin-bottom: 2rem;
-}
-
-.profile-title-wrapper {
+.profile-page {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 64px - 3rem);
+  overflow: hidden;
 }
-
-.back-btn {
+.back-btn-inline {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 8px;
   background: white;
   border: 1px solid var(--color-border);
   display: flex;
@@ -379,13 +371,14 @@ const saveProfile = async () => {
   justify-content: center;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   flex-shrink: 0;
 }
 
-.back-btn:hover {
-  background: #f1f5f9;
+.back-btn-inline:hover {
+  background: #f8fafc;
   color: var(--color-primary);
+  border-color: #cbd5e1;
 }
 
 .page-title {
@@ -406,15 +399,19 @@ const saveProfile = async () => {
 .profile-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 2rem;
+  gap: 1.5rem;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .form-card {
-  padding: 2rem;
+  padding: 1rem 1.5rem;
 }
 
 .preview-card {
-  padding: 2rem;
+  padding: 1.5rem;
   height: fit-content;
 }
 
@@ -422,7 +419,7 @@ const saveProfile = async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .section-icon {
@@ -438,7 +435,7 @@ const saveProfile = async () => {
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Kunci utama agar Textarea Alamat melebar penuh ke kanan */
@@ -449,7 +446,7 @@ const saveProfile = async () => {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 /* Preview Card */
@@ -457,7 +454,7 @@ const saveProfile = async () => {
   font-size: 1rem;
   font-weight: 600;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .preview-content {
@@ -483,7 +480,7 @@ const saveProfile = async () => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .preview-item {

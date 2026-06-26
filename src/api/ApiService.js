@@ -7,7 +7,10 @@ export default {
     getProfile() {
         return apiClient.get('/user')
     },
-
+   getMyReimbursementsMessages(page = 1) {
+        // Meneruskan parameter page ke backend
+        return apiClient.get(`/reimbursement-message/my-messages?page=${page}`)
+    },
     // STAFF
     updateProfile(data) {
         return apiClient.post('/update-profile', data)
@@ -40,12 +43,39 @@ export default {
     },
 
     // FINANCE
+    getSourceFunding(page=1) {
+        return apiClient.get(`/source-funding?page=${page}`)
+    },
+  
     getBalanceStats() {
         return apiClient.get('/deposit/get/balance-stats')
     },
-    getReimbursements() {
-        return apiClient.get('/reimburse')
+    getReimbursements(page = 1) {
+        return apiClient.get(`/reimburse?page=${page}`)
     },
+    getChartWeekly(startDate, endDate) {
+        return apiClient.get(`/reimburse/weekly?start_date=${startDate}&end_date=${endDate}`)
+    },
+        getChartMonthly(month,year) {
+        return apiClient.get(`/reimburse/monthly?month=${month}&year=${year}`)
+    },
+    getReimbursementsByMonth(page = 1, period) {
+        return apiClient.get(`/reimburse/filter/month`, {
+            params: { page: page, period: period }
+        })
+    },
+
+    // Untuk memanggil data filter rentang tanggal
+    getReimbursementsByDateRange(page = 1, startDate, endDate) {
+        return apiClient.get(`/reimburse/filter/range`, {
+            params: {
+                page: page,
+                start_date: startDate,
+                end_date: endDate
+            }
+        })
+    },
+
     // FINANCE / ADMIN
     getApprovalReimbursements() {
         return apiClient.get('/approval-reimbursement')
@@ -145,5 +175,50 @@ export default {
     },
     recoveryDeposit(id) {
         return apiClient.post(`/deposit/recovery/${id}`)
+    },
+    getDepositDetail(id) {
+        return apiClient.get(`/deposit/${id}`)
+    },
+    getLogCompanyDeposit(id) {
+        return apiClient.get(`/deposit/log/${id}`)
+    },
+
+    // ENDPOINT TAMBAHAN UNTUK SINKRONISASI
+    // Pesan Reimbursement
+    getReimbursementMessageDetail(id) {
+        return apiClient.get(`/reimbursement-message/${id}`)
+    },
+    updateReimbursementMessage(id, data) {
+        return apiClient.post(`/reimbursement-message/${id}`, data)
+    },
+    deleteReimbursementMessage(id) {
+        return apiClient.delete(`/reimbursement-message/delete/${id}`)
+    },
+
+    // Persetujuan Reimbursement
+    getApprovalReimbursementDetail(id) {
+        return apiClient.get(`/approval-reimbursement/${id}`)
+    },
+    deleteApprovalReimbursement(id) {
+        return apiClient.delete(`/approval-reimbursement/delete/${id}`)
+    },
+
+    // Reimburse
+    deleteReimbursement(id) {
+        return apiClient.delete(`/reimburse/delete/${id}`)
+    },
+
+    // Detail Data Master
+    getCategoryDetail(id) {
+        return apiClient.get(`/category/${id}`)
+    },
+    getProviderDetail(id) {
+        return apiClient.get(`/provider/${id}`)
+    },
+    getRoleDetail(id) {
+        return apiClient.get(`/role/${id}`)
+    },
+    getEmployeeDetail(id) {
+        return apiClient.get(`/employee/${id}`)
     }
 }

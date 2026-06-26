@@ -14,10 +14,15 @@ const stats = ref([
 ])
 
 const transactions = ref([])
+const isLoading = ref(true)
 
-
+// State Sorting
+const searchQuery = ref('')
+const sortOption = ref('terbaru') // Pilihan: terbaru, terlama, tertinggi, terendah
+const isSortDropdownOpen = ref(false)
 
 onMounted(async () => {
+  isLoading.value = true
   try {
     const [statsRes, depositRes, reimbRes] = await Promise.all([
       ApiService.getBalanceStats(),
@@ -37,21 +42,20 @@ onMounted(async () => {
     stats.value[2].value = formatRupiah(menunggu)
     stats.value[2].progress = totalBudget > 0 ? (menunggu / totalBudget) * 100 : 0
 
-    // Combine and format transactions
     let allTx = []
     
     // 1. Deposits (Dana Masuk)
     const deposits = depositRes.data?.data?.data || depositRes.data?.data || []
     deposits.forEach(d => {
       allTx.push({
-        id: `DEP-${d.id_deposit}`,
+        id: `DEP-${d.id_company_deposit || d.id_deposit}`,
         type: 'Dana Masuk',
         source: d.bank_ref_number || 'Deposit Kas',
         amount: `+${formatRupiah(d.amount)}`,
         rawAmount: parseFloat(d.amount),
-        rawDate: new Date(d.transaction_date || d.created_at),
-        date: new Date(d.transaction_date || d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-        note: d.notes || 'Penambahan Saldo Kas'
+        rawDate: new Date(d.date_deposit || d.transaction_date || d.created_at),
+        date: new Date(d.date_deposit || d.transaction_date || d.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        note: d.description || d.notes || 'Penambahan Saldo Kas'
       })
     })
 
@@ -62,9 +66,9 @@ onMounted(async () => {
         allTx.push({
           id: `RMB-${r.id_request}`,
           type: 'Dana Keluar',
-          source: `Reimburse: ${r.employee_name || 'Karyawan'}`,
+          source: `Reimburse: ${r.employees_name || r.employee_name || 'Karyawan'}`,
           amount: `-${formatRupiah(r.amount)}`,
-          rawAmount: parseFloat(r.amount),
+          rawAmount: -parseFloat(r.amount), // Jadikan negatif untuk kalkulasi saldo
           rawDate: new Date(r.expense_date || r.created_at),
           date: new Date(r.expense_date || r.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
           note: r.description || r.category_name || 'Pembayaran Reimbursement'
@@ -72,35 +76,57 @@ onMounted(async () => {
       }
     })
 
-    // Sort descending by date
-    allTx.sort((a, b) => b.rawDate - a.rawDate)
+    // Sort awal berdasarkan tanggal terlama untuk menghitung Saldo Berjalan (Running Balance)
+    allTx.sort((a, b) => a.rawDate - b.rawDate)
     
+    let currentBalance = 0;
+    allTx = allTx.map(tx => {
+      currentBalance += tx.rawAmount
+      return { ...tx, rawBalance: currentBalance, balance: formatRupiah(currentBalance) }
+    })
+
     transactions.value = allTx
   } catch (error) {
     console.error('Failed to load deposit data', error)
+  } finally {
+    isLoading.value = false
   }
 })
 
-const searchQuery = ref('')
-const selectedMonth = ref('Januari 2025')
-
-const filteredTransactions = computed(() => {
-  return transactions.value.filter(t => 
+// Fungsi Filter & Sort
+const filteredAndSortedTransactions = computed(() => {
+  // 1. Filter Pencarian
+  let result = transactions.value.filter(t => 
     t.source.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    t.type.toLowerCase().includes(searchQuery.value.toLowerCase())
+    t.type.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    t.note.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
+
+  // 2. Sorting
+  if (sortOption.value === 'terbaru') {
+    result.sort((a, b) => b.rawDate - a.rawDate)
+  } else if (sortOption.value === 'terlama') {
+    result.sort((a, b) => a.rawDate - b.rawDate)
+  } else if (sortOption.value === 'tertinggi') {
+    result.sort((a, b) => Math.abs(b.rawAmount) - Math.abs(a.rawAmount))
+  } else if (sortOption.value === 'terendah') {
+    result.sort((a, b) => Math.abs(a.rawAmount) - Math.abs(b.rawAmount))
+  }
+
+  return result
 })
+
+const selectSort = (option) => {
+  sortOption.value = option
+  isSortDropdownOpen.value = false
+}
 
 const goToTambah = () => router.push('/finance/deposit/tambah')
 </script>
-
 <template>
   <div class="finance-deposit">
-    <div class="page-header">
-      <h1 class="page-title">Deposit</h1>
-    </div>
+    
 
-    <!-- Deposit Tracker Section -->
     <div class="card tracker-card">
       <div class="card-head">
         <h3 class="card-title">Deposit Tracker</h3>
@@ -108,7 +134,16 @@ const goToTambah = () => router.push('/finance/deposit/tambah')
           <Plus :size="16" /> Tambah Saldo Kas
         </button>
       </div>
-      <div class="stats-row">
+
+      <div v-if="isLoading" class="stats-row">
+        <div v-for="i in 3" :key="i" class="tracker-stat">
+          <div class="skeleton skeleton-text" style="width: 50%;"></div>
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-text" style="width: 100%; height: 5px; margin-top: 10px;"></div>
+        </div>
+      </div>
+
+      <div v-else class="stats-row">
         <div v-for="s in stats" :key="s.label" class="tracker-stat">
           <div class="stat-meta">
             <p class="stat-label">{{ s.label }}</p>
@@ -124,17 +159,24 @@ const goToTambah = () => router.push('/finance/deposit/tambah')
       </div>
     </div>
 
-    <!-- Transaction List Section -->
     <div class="card table-card">
       <div class="table-header">
         <div class="search-box">
           <Search :size="14" class="search-icon" />
           <input v-model="searchQuery" type="text" placeholder="Cari Riwayat..." class="search-input" />
         </div>
-        <div class="sort-dropdown">
-          <button class="btn btn-outline btn-sort">
+        
+        <div class="sort-dropdown" style="position: relative;">
+          <button class="btn btn-outline btn-sort" @click="isSortDropdownOpen = !isSortDropdownOpen">
             Urutkan <ChevronDown :size="14" />
           </button>
+          
+          <div v-if="isSortDropdownOpen" class="dropdown-menu">
+            <button class="dropdown-item" :class="{ active: sortOption === 'terbaru' }" @click="selectSort('terbaru')">Terbaru</button>
+            <button class="dropdown-item" :class="{ active: sortOption === 'terlama' }" @click="selectSort('terlama')">Terlama</button>
+            <button class="dropdown-item" :class="{ active: sortOption === 'tertinggi' }" @click="selectSort('tertinggi')">Nominal Tertinggi</button>
+            <button class="dropdown-item" :class="{ active: sortOption === 'terendah' }" @click="selectSort('terendah')">Nominal Terendah</button>
+          </div>
         </div>
       </div>
 
@@ -150,15 +192,33 @@ const goToTambah = () => router.push('/finance/deposit/tambah')
               <th>KETERANGAN</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="t in filteredTransactions" :key="t.id">
+
+          <tbody v-if="isLoading">
+            <tr>
+              <td colspan="6" class="text-center loading-state">
+                <div class="loader-spinner"></div>
+                <p class="loading-text">Memuat transaksi...</p>
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody v-else-if="filteredAndSortedTransactions.length === 0">
+            <tr>
+              <td colspan="6" class="text-center empty-state">
+                <p class="text-muted">Tidak ada data transaksi ditemukan.</p>
+              </td>
+            </tr>
+          </tbody>
+
+          <tbody v-else>
+            <tr v-for="t in filteredAndSortedTransactions" :key="t.id">
               <td>
                 <span class="type-badge" :class="t.type.replace(' ', '-').toLowerCase()">
                   {{ t.type }}
                 </span>
               </td>
               <td>
-                <p class="t-source" :class="{ 'text-blue': t.name }">{{ t.source }}</p>
+                <p class="t-source" :class="{ 'text-blue': t.type === 'Dana Keluar' }">{{ t.source }}</p>
               </td>
               <td class="font-bold" :class="t.type === 'Dana Masuk' ? 'text-green' : 'text-red'">
                 {{ t.amount }}
@@ -173,26 +233,22 @@ const goToTambah = () => router.push('/finance/deposit/tambah')
     </div>
   </div>
 </template>
-
 <style scoped>
 .finance-deposit { display: flex; flex-direction: column; gap: 1rem; background: #f8fafc; height: 100%; overflow: hidden; }
 
-.page-header { margin-bottom: 0.25rem; }
-.page-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; }
-
-.card { background: white; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; }
+.card { background: white; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.table-card { flex: 1; }
+.tracker-card { flex-shrink: 0; }
 .card-head { padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
 .card-title { font-size: 0.8125rem; font-weight: 700; color: #1e293b; }
 
 /* Tracker */
 .btn-add-setoran { background: #3b82f6; color: white; border: none; font-size: 0.7rem; font-weight: 700; padding: 0.4rem 0.875rem; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 0.375rem; }
-
 .stats-row { padding: 0 1.25rem 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
 .tracker-stat { padding: 1rem; border: 1px solid #f1f5f9; border-radius: 12px; display: flex; flex-direction: column; gap: 0.5rem; }
 .stat-meta { display: flex; flex-direction: column; gap: 0.125rem; }
 .stat-label { font-size: 0.55rem; font-weight: 700; color: #94a3b8; }
 .stat-value { font-size: 1.125rem; font-weight: 800; color: #1e293b; }
-
 .progress-wrapper { display: flex; flex-direction: column; gap: 0.25rem; }
 .progress-container { width: 100%; height: 5px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
 .progress-bar { height: 100%; border-radius: 10px; }
@@ -200,26 +256,17 @@ const goToTambah = () => router.push('/finance/deposit/tambah')
 
 /* Table Section */
 .table-header { padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
-.search-box { position: relative; }
-.search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-.search-input { padding: 0.4rem 0.75rem 0.4rem 2.125rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.75rem; outline: none; width: 220px; }
-
-.btn-sort { font-size: 0.7rem; font-weight: 700; color: #64748b; padding: 0.4rem 0.875rem; border-radius: 8px; display: flex; align-items: center; gap: 0.375rem; }
-
-.table-responsive { overflow-x: auto; max-height: calc(100vh - 400px); }
-.modern-table { width: 100%; border-collapse: collapse; }
-.modern-table th { text-align: left; padding: 0.75rem 1.25rem; font-size: 0.6rem; font-weight: 600; color: #64748b; background: #f8fafc; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; letter-spacing: 0.05em; }
-.modern-table td { padding: 0.75rem 1.25rem; font-size: 0.7rem; color: #475569; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.sort-dropdown { position: relative; }
+.dropdown-menu { position: absolute; top: calc(100% + 5px); right: 0; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 160px; z-index: 10; display: flex; flex-direction: column; padding: 0.25rem; }
+.dropdown-item { padding: 0.5rem 0.75rem; font-size: 0.7rem; font-weight: 600; color: #475569; background: white; border: none; text-align: left; cursor: pointer; border-radius: 4px; }
+.dropdown-item:hover { background: #f8fafc; color: #1e293b; }
+.dropdown-item.active { background: #eff6ff; color: #3b82f6; }
 
 .type-badge { font-size: 0.55rem; font-weight: 700; padding: 0.125rem 0.375rem; border-radius: 4px; }
 .type-badge.dana-masuk { background: #f0fdf4; color: #16a34a; }
 .type-badge.dana-keluar { background: #fef2f2; color: #ef4444; }
-
 .t-source { font-weight: 700; color: #1e293b; }
 .text-blue { color: #3b82f6; }
-
 .text-green { color: #22c55e; }
 .text-red { color: #ef4444; }
-.text-muted { color: #94a3b8; }
-.font-bold { font-weight: 800; }
 </style>

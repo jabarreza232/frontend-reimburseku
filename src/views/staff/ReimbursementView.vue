@@ -37,10 +37,10 @@ const getDisplayStatus = (status) => {
 
 const getStatusPillClass = (status) => {
   switch(status) {
-    case 'menunggu': return 'pill-warning'
-    case 'disetujui': return 'pill-info'
-    case 'dibayar': return 'pill-success'
-    case 'ditolak': return 'pill-danger'
+    case 'menunggu': return 'menunggu'
+    case 'disetujui': return 'diterima'
+    case 'dibayar': return 'dibayar'
+    case 'ditolak': return 'ditolak'
     default: return ''
   }
 }
@@ -69,7 +69,7 @@ const getBorderColor = (category) => {
   <div class="reimbursement-list">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Daftar Reimbursement</h1>
+        
         <p class="text-muted mt-1">Kelola semua pengajuan reimbursement Anda</p>
       </div>
       <router-link to="/staf/reimbursement/tambah" class="btn btn-primary">
@@ -144,6 +144,13 @@ const getBorderColor = (category) => {
 </template>
 
 <style scoped>
+.reimbursement-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .toolbar {
   padding: 0 0 1.5rem 0;
   display: flex;
@@ -151,20 +158,6 @@ const getBorderColor = (category) => {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.search-box {
-  position: relative;
-  width: 300px;
-  max-width: 100%;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-muted);
 }
 
 .search-box .form-control {
@@ -190,6 +183,10 @@ const getBorderColor = (category) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.25rem;
+  margin: -0.25rem;
 }
 
 .reimbursement-card {
@@ -237,40 +234,7 @@ const getBorderColor = (category) => {
   gap: 0.75rem;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  border: 1px solid transparent;
-}
 
-.pill-success {
-  background-color: #ECFDF5;
-  color: #10B981;
-  border-color: #A7F3D0;
-}
-
-.pill-danger {
-  background-color: #FEF2F2;
-  color: #EF4444;
-  border-color: #FECACA;
-}
-
-.pill-warning {
-  background-color: #FFFBEB;
-  color: #F59E0B;
-  border-color: #FDE68A;
-}
-
-.pill-info {
-  background-color: #EFF6FF;
-  color: #3B82F6;
-  border-color: #BFDBFE;
-}
 
 .status-reason {
   font-size: 0.8rem;
@@ -291,7 +255,8 @@ const getBorderColor = (category) => {
 
 /* Pagination */
 .pagination-wrapper {
-  margin-top: 2rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   display: flex;
   justify-content: center;
 }
@@ -300,32 +265,6 @@ const getBorderColor = (category) => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.page-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: #6B7280;
-  font-size: 0.875rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(.active) {
-  background-color: #F3F4F6;
-  color: #111827;
-}
-
-.page-btn.active {
-  background-color: #3B82F6;
-  color: white;
-  font-weight: 500;
 }
 
 .page-arrow {

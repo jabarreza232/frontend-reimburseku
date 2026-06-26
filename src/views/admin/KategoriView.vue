@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Plus, PencilLine, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
+import Swal from 'sweetalert2'
 
 const categories = ref([])
 
@@ -25,17 +26,65 @@ onMounted(fetchCategories)
 const searchQuery = ref('')
 
 
+const showModal = ref(false)
+const isEdit = ref(false)
+const editId = ref(null)
+const formData = ref({ category_name: '', description: '' })
+
 function openAdd() {
-  // TODO: Implementasi modal tambah kategori
+  isEdit.value = false
+  editId.value = null
+  formData.value = { category_name: '', description: '' }
+  showModal.value = true
+}
+
+function openEdit(cat) {
+  isEdit.value = true
+  editId.value = cat.id
+  formData.value = { category_name: cat.name, description: cat.description }
+  showModal.value = true
+}
+
+function closeAdd() {
+  showModal.value = false
+}
+
+async function submitAdd() {
+  try {
+    if (isEdit.value) {
+      await ApiService.updateCategory(editId.value, formData.value)
+      Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Kategori berhasil diupdate.', showConfirmButton: false, timer: 1500 })
+    } else {
+      await ApiService.saveCategory(formData.value)
+      Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Kategori berhasil ditambahkan.', showConfirmButton: false, timer: 1500 })
+    }
+    fetchCategories()
+    closeAdd()
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal menyimpan kategori' })
+    console.error(err)
+  }
 }
 
 const deleteCategory = async (id) => {
-  if (confirm('Yakin ingin menghapus kategori ini?')) {
+  const result = await Swal.fire({
+    title: 'Hapus Kategori?',
+    text: "Yakin ingin menghapus kategori ini?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#94a3b8',
+    confirmButtonText: 'Ya, hapus!',
+    cancelButtonText: 'Batal'
+  })
+  
+  if (result.isConfirmed) {
     try {
       await ApiService.deleteCategory(id)
       fetchCategories()
+      Swal.fire({ icon: 'success', title: 'Dihapus!', text: 'Kategori berhasil dihapus.', showConfirmButton: false, timer: 1500 })
     } catch (err) {
-      alert('Gagal menghapus kategori')
+      Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal menghapus kategori' })
       console.error(err)
     }
   }
@@ -48,9 +97,7 @@ const filteredCategories = computed(() => {
 
 <template>
   <div class="kategori-page">
-    <div class="page-header">
-      <h1 class="page-title">Kategori</h1>
-    </div>
+    
 
     <div class="card main-card">
       <div class="card-header">
@@ -86,7 +133,7 @@ const filteredCategories = computed(() => {
               <td class="text-muted">{{ cat.description }}</td>
               <td class="text-center">
                 <div class="action-btns">
-                  <button class="btn-icon edit"><Pencil :size="12" /></button>
+                  <button class="btn-icon edit" @click="openEdit(cat)"><PencilLine :size="12" /></button>
                   <button class="btn-icon delete" @click="deleteCategory(cat.id)"><Trash2 :size="12" /></button>
                 </div>
               </td>
@@ -96,11 +143,46 @@ const filteredCategories = computed(() => {
       </div>
 
       <div class="table-footer">
-        <div class="pagination">
+        <p class="text-muted text-xs">Menampilkan {{ filteredCategories.length }} data</p>
+        <div class="pagination" v-if="Math.ceil(filteredCategories.length / 10) > 1">
           <button class="page-btn"><ChevronLeft :size="12" /></button>
           <button class="page-btn active">1</button>
-          <button class="page-btn">2</button>
+          <button class="page-btn" v-for="p in Math.ceil(filteredCategories.length / 10) - 1" :key="p">{{ p + 1 }}</button>
           <button class="page-btn"><ChevronRight :size="12" /></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Tambah Kategori -->
+    <div v-if="showModal" class="modal-overlay" @click.self="closeAdd">
+      <div class="modal-panel">
+        <div class="modal-panel-header">
+          <div class="modal-header-icon">
+            <component :is="isEdit ? PencilLine : Plus" :size="18" />
+          </div>
+          <div>
+            <h3>{{ isEdit ? 'Edit Kategori' : 'Tambah Kategori Baru' }}</h3>
+            <p class="modal-header-sub">{{ isEdit ? 'Perbarui informasi kategori' : 'Tambahkan kategori pengeluaran baru' }}</p>
+          </div>
+        </div>
+        <div class="modal-panel-body" style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 0.875rem;">
+          <div class="form-group">
+            <label>Nama Kategori <span class="required">*</span></label>
+            <input v-model="formData.category_name" type="text" class="form-control" placeholder="Contoh: Transport" />
+            <p class="form-hint">Nama singkat jenis pengeluaran</p>
+          </div>
+          <div class="form-group">
+            <label>Deskripsi</label>
+            <textarea v-model="formData.description" class="form-control" rows="1" placeholder="Mencakup pengeluaran apa saja..."></textarea>
+            <p class="form-hint">Penjelasan opsional</p>
+          </div>
+        </div>
+        <div class="modal-panel-footer">
+          <button class="btn btn-outline" @click="closeAdd">Batal</button>
+          <button class="btn btn-primary btn-save" @click="submitAdd" :disabled="!formData.category_name.trim()">
+            <component :is="isEdit ? PencilLine : Plus" :size="14" />
+            {{ isEdit ? 'Simpan' : 'Tambah Kategori' }}
+          </button>
         </div>
       </div>
     </div>
@@ -108,37 +190,7 @@ const filteredCategories = computed(() => {
 </template>
 
 <style scoped>
-.kategori-page { display: flex; flex-direction: column; gap: 1rem; background-color: #f8fafc; height: 100%; overflow: hidden; }
-
-.page-header { margin-bottom: 0.25rem; }
-.page-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; }
-
-.main-card { background: white; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0,0,0,0.05); overflow: hidden; }
-.card-header { padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f8fafc; }
-.card-header-title { font-size: 0.875rem; font-weight: 700; color: #1e293b; }
-
-.header-actions { display: flex; gap: 0.625rem; align-items: center; }
-.search-box { position: relative; }
-.search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-.search-input { padding: 0.4rem 0.75rem 0.4rem 2.125rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.75rem; outline: none; width: 200px; }
-.btn-sort { display: flex; align-items: center; gap: 0.375rem; padding: 0.4rem 0.875rem; font-size: 0.75rem; color: #64748b; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; }
-.btn-add { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; padding: 0.4rem 0.875rem; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; }
-
-.table-responsive { overflow-x: auto; max-height: calc(100vh - 220px); }
-.modern-table { width: 100%; border-collapse: collapse; }
-.modern-table th { text-align: left; padding: 0.75rem 1.25rem; font-size: 0.6rem; font-weight: 600; color: #64748b; background: #f8fafc; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; letter-spacing: 0.05em; }
-.modern-table td { padding: 0.75rem 1.25rem; font-size: 0.75rem; color: #475569; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
-
-.text-primary-dark { color: #2563eb; font-weight: 700; }
-.text-muted { color: #94a3b8; font-size: 0.7rem; }
-
-.action-btns { display: flex; justify-content: center; gap: 0.375rem; }
-.btn-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s; }
-.btn-icon.edit { background: #f59e0b; color: white; }
-.btn-icon.delete { background: #ef4444; color: white; }
-
-.table-footer { padding: 0.75rem 1.25rem; display: flex; justify-content: center; background: #f8fafc; }
-.pagination { display: flex; gap: 0.25rem; }
-.page-btn { width: 24px; height: 24px; border-radius: 4px; border: 1px solid #e2e8f0; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 600; color: #64748b; cursor: pointer; }
-.page-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+.kategori-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
+.text-muted { font-size: 0.7rem; }
+.form-hint { margin: 0.375rem 0 0; font-size: 0.6875rem; color: #94a3b8; line-height: 1.4; }
 </style>

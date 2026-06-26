@@ -5,9 +5,14 @@ import {
 } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+
+const pageTitle = computed(() => route.meta.title || 'ReimburseKu')
 
 const navItems = [
   { to: '/admin/dasbor',        label: 'Beranda',            icon: LayoutDashboard },
@@ -35,7 +40,7 @@ function logout() {
         <p class="role-label">Administrator</p>
       </div>
 
-      <nav class="nav-menu">
+      <nav class="sidebar-nav">
         <RouterLink
           v-for="item in navItems"
           :key="item.to"
@@ -59,7 +64,7 @@ function logout() {
     <main class="main-content">
       <div class="topbar">
         <div class="topbar-left">
-          <!-- Tombol toggle dihapus -->
+          <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
         <div class="topbar-right">
           <div class="user-profile-top">
@@ -69,7 +74,7 @@ function logout() {
         </div>
       </div>
 
-      <div class="page-wrapper">
+      <div class="page-content">
         <RouterView />
       </div>
     </main>
@@ -80,11 +85,11 @@ function logout() {
 .layout-container {
   display: flex;
   min-height: 100vh;
-  background-color: #f4f6f9;
+  background-color: var(--color-background);
 }
 
 .sidebar {
-  width: 240px;
+  width: 250px;
   background-color: var(--color-primary);
   color: white;
   display: flex;
@@ -139,7 +144,7 @@ function logout() {
   margin-left: 0.25rem;
 }
 
-.nav-menu {
+.sidebar-nav {
   flex: 1;
   padding: 1rem 0.5rem;
   display: flex;
@@ -178,24 +183,21 @@ function logout() {
   font-weight: 600;
 }
 
-.sidebar-footer {
-  padding: 1rem 0.5rem;
-  border-top: 1px solid rgba(255,255,255,0.1);
-}
-
 .logout-btn {
+  background-color: transparent;
   color: rgba(255,255,255,0.7);
 }
 
 .logout-btn:hover {
-  background-color: rgba(239,68,68,0.2);
-  color: #fca5a5;
+  background-color: #dc2626 !important;
+  color: white !important;
 }
 
 .main-content {
   flex: 1;
-  margin-left: 240px;
-  min-height: 100vh;
+  margin-left: 250px;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -210,6 +212,11 @@ function logout() {
   position: sticky;
   top: 0;
   z-index: 10;
+  height: 64px;
+}
+
+.page-title {
+  font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;
 }
 
 .topbar-right {
@@ -244,23 +251,26 @@ function logout() {
   color: #475569;
 }
 
-.page-wrapper {
-  padding: 1.25rem 1.5rem;
+.page-content {
+  padding: 1.5rem 2rem;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 64px;
+    width: 70px;
   }
   .sidebar span, .sidebar .logo-text, .sidebar .role-label {
     display: none;
   }
   .main-content {
-    margin-left: 64px;
+    margin-left: 70px;
   }
-  .page-wrapper {
-    padding: 1.25rem;
+  .page-content {
+    padding: 1rem;
   }
 }
 </style>

@@ -1,0 +1,132 @@
+[
+  {
+    "file": "views/finance/DashboardView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 1003,
+    "refLines": 1102,
+    "lineDiff": 99,
+    "templateDiff": 11,
+    "hasConflictInCurrent": false,
+    "priority": "MEDIUM"
+  },
+  {
+    "file": "views/finance/KaryawanView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 465,
+    "refLines": 537,
+    "lineDiff": 72,
+    "templateDiff": 17,
+    "hasConflictInCurrent": false,
+    "priority": "MEDIUM"
+  },
+  {
+    "file": "views/staff/DashboardView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 1591,
+    "refLines": 1748,
+    "lineDiff": 157,
+    "templateDiff": 12,
+    "hasConflictInCurrent": false,
+    "priority": "MEDIUM"
+  },
+  {
+    "file": "api/apiClient.js",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 20,
+    "refLines": 25,
+    "lineDiff": 5,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "assets/main.css",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 455,
+    "refLines": 522,
+    "lineDiff": 67,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "layouts/StaffLayout.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 442,
+    "refLines": 457,
+    "lineDiff": 15,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/admin/DashboardView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 800,
+    "refLines": 805,
+    "lineDiff": 5,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/admin/DepositView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 185,
+    "refLines": 189,
+    "lineDiff": 4,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/finance/DepositView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 341,
+    "refLines": 363,
+    "lineDiff": 22,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/finance/ReimbursementView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 902,
+    "refLines": 944,
+    "lineDiff": 42,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/finance/TambahDepositView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 211,
+    "refLines": 216,
+    "lineDiff": 5,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/staff/CetakStrukView.vue",
+    "status": "DIFFERS",
+    "currentLines": 397,
+    "refLines": 397,
+    "lineDiff": 0,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  },
+  {
+    "file": "views/staff/ReimbursementAddView.vue",
+    "status": "REF_HAS_CONFLICTS",
+    "currentLines": 519,
+    "refLines": 523,
+    "lineDiff": 4,
+    "templateDiff": 0,
+    "hasConflictInCurrent": false,
+    "priority": "LOW"
+  }
+]

@@ -18,10 +18,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          'chart-vendor': ['vue3-apexcharts', 'apexcharts'],
-          'ui-vendor': ['lucide-vue-next', 'sweetalert2', 'axios']
+        manualChunks(id) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/pinia') || id.includes('node_modules/vue-router')) {
+            return 'vue-vendor';
+          }
+          if (id.includes('node_modules/apexcharts') || id.includes('node_modules/vue3-apexcharts')) {
+            return 'chart-vendor';
+          }
+          if (id.includes('node_modules/lucide') || id.includes('node_modules/sweetalert2') || id.includes('node_modules/axios')) {
+            return 'ui-vendor';
+          }
         }
       }
     }

@@ -9,7 +9,7 @@ import { formatRupiah } from '@/utils/format'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-
+const isLoading = ref(true)
 // State Modal Preview Gambar
 const isModalOpen = ref(false)
 const zoomLevel = ref(1)
@@ -61,7 +61,12 @@ onMounted(async () => {
 
     } catch (err) {
       console.error('Gagal mengambil data detail atau log:', err)
+    }finally {
+      // Tambahkan blok finally ini
+      isLoading.value = false
     }
+  }else{
+    isLoading.value = false
   }
 })
 
@@ -117,32 +122,62 @@ const zoomOut = () => {
 <template>
   <div class="detail-page">
     <div class="page-container">
-      <div class="page-header">
-        <button class="back-btn" @click="router.push('/staf/dasbor')">
-          <ArrowLeft :size="20" />
-        </button>
-        <div class="header-info">
-          <h1 class="page-title">Detail Reimbursement</h1>
-          <p class="text-muted">Informasi lengkap reimburse anda</p>
+
+  <div v-if="isLoading" class="layout-grid">
+        <div class="left-column">
+          <div class="card detail-card">
+            <div class="skeleton skeleton-title"></div>
+            <div class="grid-2-cols mb-6">
+              <div class="skeleton skeleton-input col-span-2"></div>
+              <div class="skeleton skeleton-input"></div>
+              <div class="skeleton skeleton-input"></div>
+            </div>
+            
+            <hr class="section-divider" />
+            
+            <div class="skeleton skeleton-title"></div>
+            <div class="grid-2-cols-uneven">
+              <div class="left-fields">
+                <div class="skeleton skeleton-input"></div>
+                <div class="skeleton skeleton-input"></div>
+                <div class="skeleton skeleton-input"></div>
+              </div>
+              <div class="right-fields">
+                <div class="skeleton skeleton-input" style="height: 50px;"></div>
+                <div class="skeleton skeleton-input" style="height: 120px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-column">
+          <div class="card log-card" style="padding: 1.5rem;">
+            <div class="skeleton skeleton-title" style="width: 60%; margin-bottom: 2rem;"></div>
+            
+            <div v-for="i in 3" :key="i" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+               <div class="skeleton skeleton-circle"></div>
+               <div style="flex: 1;">
+                 <div class="skeleton skeleton-text" style="width: 40%;"></div>
+                 <div class="skeleton skeleton-text" style="width: 80%;"></div>
+               </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="layout-grid">
+      <div v-else class="layout-grid">
+        
         <div class="left-column">
           <div class="card detail-card">
             <div class="form-section">
               <div class="section-title-wrap">
-                <div class="section-icon">
-                  <User :size="18" />
-                </div>
+                <button class="back-btn-inline" @click="router.push('/staf/dasbor')" title="Kembali">
+                  <ArrowLeft :size="18" />
+                </button>
+                <div class="section-icon"><User :size="18" /></div>
                 <h3 class="section-title">Informasi Karyawan</h3>
               </div>
-              
               <div class="grid-2-cols">
-                <div class="form-group col-span-2">
-                  <label class="form-label">Nomor Rekening</label>
-                  <div class="readonly-field">{{ data.rekening }}</div>
-                </div>
                 <div class="form-group">
                   <label class="form-label">Nama</label>
                   <div class="readonly-field">{{ data.nama }}</div>
@@ -151,6 +186,10 @@ const zoomOut = () => {
                   <label class="form-label">Posisi</label>
                   <div class="readonly-field">{{ data.posisi }}</div>
                 </div>
+                <div class="form-group col-span-2">
+                  <label class="form-label">Nomor Rekening (Tujuan Transfer)</label>
+                  <div class="readonly-field">{{ data.rekening }}</div>
+                </div>
               </div>
             </div>
 
@@ -158,19 +197,14 @@ const zoomOut = () => {
 
             <div class="form-section">
               <div class="section-title-wrap">
-                <div class="section-icon">
-                  <FileText :size="18" />
-                </div>
+                <div class="section-icon"><FileText :size="18" /></div>
                 <h3 class="section-title">Informasi Pengajuan</h3>
               </div>
-
               <div class="grid-2-cols-uneven">
                 <div class="left-fields">
                   <div class="form-group">
                     <label class="form-label">Kategori</label>
-                    <select class="form-control" disabled>
-                      <option>{{ data.kategori }}</option>
-                    </select>
+                    <select class="form-control" disabled><option>{{ data.kategori }}</option></select>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Tanggal di Kirim</label>
@@ -181,15 +215,10 @@ const zoomOut = () => {
                     <input type="text" class="form-control font-bold text-primary" :value="data.total" disabled />
                   </div>
                 </div>
-
                 <div class="right-fields">
                   <div class="form-group">
                     <label class="form-label">Upload Bukti / Struk</label>
-                    <div 
-                      class="file-preview-box" 
-                      :class="{ 'is-clickable': data.buktiUrl }"
-                      @click="openModal"
-                    >
+                    <div class="file-preview-box" :class="{ 'is-clickable': data.buktiUrl }" @click="openModal">
                       <ImageIcon :size="20" :class="data.buktiUrl ? 'text-primary' : 'text-muted'" />
                       <span :class="data.buktiUrl ? 'text-primary font-medium' : 'text-muted'">{{ data.bukti }}</span>
                     </div>
@@ -207,51 +236,34 @@ const zoomOut = () => {
         <div class="right-column">
           <div class="card log-card">
             <div class="section-title-wrap log-header">
-              <div class="section-icon">
-                <History :size="18" />
-              </div>
+              <div class="section-icon"><History :size="18" /></div>
               <h3 class="section-title">Riwayat Status</h3>
             </div>
-
             <div class="log-scroll-area">
               <div v-if="approvalLogs.length === 0" class="empty-log">
                 Belum ada riwayat aktivitas.
               </div>
-
               <div v-else class="timeline-container">
-                <div 
-                  v-for="(log, index) in approvalLogs" 
-                  :key="log.id_log" 
-                  class="timeline-item"
-                >
+                <div v-for="(log, index) in approvalLogs" :key="log.id_log" class="timeline-item">
                   <div class="timeline-line" v-if="index !== approvalLogs.length - 1"></div>
-                  
-                  <div 
-                    class="timeline-icon-wrap" 
-                    :style="{ backgroundColor: getLogStyle(log.action).bg, borderColor: getLogStyle(log.action).border, color: getLogStyle(log.action).color }"
-                  >
+                  <div class="timeline-icon-wrap" :style="{ backgroundColor: getLogStyle(log.action).bg, borderColor: getLogStyle(log.action).border, color: getLogStyle(log.action).color }">
                     <component :is="getLogStyle(log.action).icon" :size="16" />
                   </div>
-                  
                   <div class="timeline-content">
                     <div class="timeline-header">
-                      <span 
-                        class="timeline-status-badge"
-                        :style="{ color: getLogStyle(log.action).color, backgroundColor: getLogStyle(log.action).bg }"
-                      >
+                      <span class="timeline-status-badge" :style="{ color: getLogStyle(log.action).color, backgroundColor: getLogStyle(log.action).bg }">
                         {{ getLogStyle(log.action).label }}
                       </span>
                       <span class="timeline-time">{{ formatDateTime(log.created_at) }}</span>
                     </div>
-                    <div class="timeline-body">
-                      {{ log.comments }}
-                    </div>
+                    <div class="timeline-body">{{ log.comments }}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        
       </div>
     </div>
 
@@ -285,6 +297,49 @@ const zoomOut = () => {
 </template>
 
 <style scoped>
+.skeleton {
+  background: #f1f5f9;
+  background: linear-gradient(110deg, #f1f5f9 8%, #e2e8f0 18%, #f1f5f9 33%);
+  border-radius: 8px;
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+.skeleton-title {
+  width: 40%;
+  height: 28px;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+}
+
+.skeleton-input {
+  width: 100%;
+  height: 46px; /* Menyesuaikan tinggi input form kamu */
+  border-radius: 10px;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+}
+
+.skeleton-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
 /* Variabel Warna Global Component */
 .detail-page {
   --color-primary: #3b82f6;
@@ -294,24 +349,40 @@ const zoomOut = () => {
   --color-bg-light: #f8fafc;
   --color-bg-disabled: #f1f5f9;
   
-  padding: 1.5rem;
-  background-color: #f8fafc;
-  min-height: 100vh;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .page-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  width: 100%;
 }
 
-/* --- HEADER --- */
 .page-header {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start !important; /* Memaksa elemen rapat ke kiri */
   gap: 1.25rem;
   margin-bottom: 2rem;
+  width: 100%;
 }
 
+.header-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Memaksa teks rata kiri */
+  text-align: left;
+  flex-grow: 1; /* Mengambil sisa ruang di kanan agar tidak terdorong */
+}
+
+/* Pastikan style tombol back ini juga ada agar tidak membesar sendiri */
 .back-btn {
   width: 40px;
   height: 40px;
@@ -324,11 +395,32 @@ const zoomOut = () => {
   color: var(--color-text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
-  flex-shrink: 0;
+  flex-shrink: 0; /* Mencegah tombol gepeng atau mengecil */
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .back-btn:hover {
+  background: var(--color-bg-light);
+  color: var(--color-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.back-btn-inline {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.back-btn-inline:hover {
   background: var(--color-bg-light);
   color: var(--color-primary);
   border-color: #cbd5e1;
@@ -352,7 +444,23 @@ const zoomOut = () => {
   display: grid;
   grid-template-columns: 1fr 380px; /* Kolom kiri fleksibel, Kolom kanan fix 380px */
   gap: 1.5rem;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  overflow: hidden;
+}
+
+.left-column {
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+  padding-right: 0.5rem;
+}
+
+.right-column {
+  height: 100%;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+  padding-right: 0.5rem;
 }
 
 /* --- CARD & SECTIONS --- */
@@ -364,7 +472,7 @@ const zoomOut = () => {
 }
 
 .detail-card {
-  padding: 2rem;
+  padding: 1.25rem 1.5rem;
 }
 
 .log-card {
@@ -379,7 +487,7 @@ const zoomOut = () => {
   border: 0;
   height: 1px;
   background-color: var(--color-border);
-  margin: 2rem 0;
+  margin: 1.25rem 0;
 }
 
 .form-section {
@@ -391,7 +499,7 @@ const zoomOut = () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .log-header {
@@ -433,7 +541,7 @@ const zoomOut = () => {
 .left-fields, .right-fields {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .col-span-2 {
@@ -480,7 +588,7 @@ const zoomOut = () => {
 
 textarea.form-control {
   resize: vertical;
-  min-height: 120px;
+  min-height: 80px;
   line-height: 1.5;
 }
 
