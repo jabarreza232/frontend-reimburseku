@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 const apiClient = axios.create({
-  baseURL: 'https://reimburseku.my.id/api', // Sementara diarahkan ke lokal karena Vercel limit
+  baseURL: '/api', // Diproteksi Vite proxy untuk bypass CORS ke server hosted
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'

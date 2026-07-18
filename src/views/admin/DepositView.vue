@@ -9,9 +9,15 @@ import Swal from 'sweetalert2'
 const router = useRouter()
 
 const deposits = ref([])
+const previewImageUrl = ref(null)
 
+const openPreview = (url) => {
+  previewImageUrl.value = url
+}
 
-
+const closePreview = () => {
+  previewImageUrl.value = null
+}
 const fetchDeposits = async () => {
   try {
     const res = await ApiService.getDeposits()
@@ -122,7 +128,7 @@ const filteredDeposits = computed(() => {
               <td class="text-muted font-mono">{{ d.ref_bank }}</td>
               <td class="text-muted">{{ d.date }}</td>
               <td>
-                <a v-if="d.proofUrl" :href="d.proofUrl" target="_blank" class="btn-text-sm">Lihat Bukti</a>
+                <button v-if="d.proofUrl" @click.prevent="openPreview(d.proofUrl)" class="btn-text-sm">Lihat Bukti</button>
                 <span v-else>-</span>
               </td>
               <td class="note-cell" :title="d.note">{{ d.note }}</td>
@@ -144,6 +150,14 @@ const filteredDeposits = computed(() => {
         </div>
       </div>
     </div>
+
+    <!-- Image Preview Modal -->
+    <div v-if="previewImageUrl" class="modal-overlay" @click="closePreview">
+      <div class="modal-preview-content" @click.stop>
+        <button class="btn-close-modal" @click="closePreview">×</button>
+        <img :src="previewImageUrl" alt="Preview Bukti" class="preview-image" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -152,4 +166,21 @@ const filteredDeposits = computed(() => {
 .note-cell { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; }
 .btn-text-sm { background: none; border: none; color: #3b82f6; font-size: 0.7rem; font-weight: 700; cursor: pointer; padding: 0; }
 .btn-icon.archive-row { background: #f1f5f9; color: #3b82f6; width: 24px; height: 24px; border-radius: 6px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+/* Image Preview Modal CSS */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; z-index: 9999;
+}
+.modal-preview-content {
+  position: relative; max-width: 90vw; max-height: 90vh; background: #fff; padding: 10px; border-radius: 8px;
+}
+.preview-image {
+  max-width: 100%; max-height: calc(90vh - 40px); object-fit: contain; display: block;
+}
+.btn-close-modal {
+  position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: none;
+  width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
 </style>

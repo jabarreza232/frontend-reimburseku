@@ -4,17 +4,20 @@ import { useRouter } from 'vue-router'
 import { ArrowLeft, UploadCloud, User, FileText, Plus } from 'lucide-vue-next'
 import apiClient from '@/api/apiClient'
 import { useAuthStore } from '@/stores/auth'
+import { useMasterDataStore } from '@/stores/masterData'
 import apiService from '@/api/ApiService'
 import Swal from 'sweetalert2'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const masterDataStore = useMasterDataStore()
 
 const listKategori = ref([])
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const isLoading = ref(false)
-const isLoadingCategories = ref(true)
+
+const isLoadingCategories = computed(() => masterDataStore.isLoadingCategories)
 
 const data = ref({
   rekening: 'BCA 31234123 (Silviana Rodrigo)',
@@ -28,24 +31,12 @@ const data = ref({
 })
 
 onMounted(async () => {
-  isLoadingCategories.value = true
-  try {
-    const res = await apiService.getCategories()
-    const apiData = res.data.data || res.data
-    
-    listKategori.value = [
-      ...apiData,
-      { id_category: 0, name: 'Dan lain-lain' }
-    ]
-  } catch (error) {
-    console.error('Gagal mengambil kategori:', error)
-    
-    listKategori.value = [
-      { id_category: 0, name: 'Dan lain-lain' }
-    ]
-  } finally {
-    isLoadingCategories.value = false
-  }
+  await masterDataStore.fetchCategories()
+  
+  listKategori.value = [
+    ...masterDataStore.categories,
+    { id_category: 0, name: 'Dan lain-lain' }
+  ]
 })
 
 const triggerUpload = () => {
@@ -164,7 +155,11 @@ const displayTotal = computed({
     return `Rp ${rupiah}`;
   },
   set: (newValue) => {
-    const rawNumber = String(newValue).replace(/[^0-9]/g, '');
+    let rawNumber = String(newValue).replace(/[^0-9]/g, '');
+    // Batasi maksimal 13 digit untuk mencegah SQL Out of Range error
+    if (rawNumber.length > 13) {
+      rawNumber = rawNumber.substring(0, 13);
+    }
     data.value.total = rawNumber ? parseInt(rawNumber, 10) : '';
   }
 })

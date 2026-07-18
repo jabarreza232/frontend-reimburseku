@@ -593,9 +593,20 @@ const exportByDateRange = async (formatType) => {
         </div>
         
         <div class="history-list">
-          <div v-if="isLoading" class="loading-container">
-            <div class="global-spinner"></div>
-            <p>Memuat riwayat...</p>
+          <div v-if="isLoading">
+            <div v-for="i in 5" :key="'skel'+i" class="history-row">
+              <div class="h-left">
+                <div class="skeleton-box skeleton-avatar"></div>
+                <div class="h-info">
+                  <div class="skeleton-box skeleton-text" style="width: 120px; margin-bottom: 6px;"></div>
+                  <div class="skeleton-box skeleton-text" style="width: 180px;"></div>
+                </div>
+              </div>
+              <div class="h-right" style="align-items: flex-end;">
+                <div class="skeleton-box skeleton-text" style="width: 100px; height: 16px; margin-bottom: 8px;"></div>
+                <div class="skeleton-box skeleton-text" style="width: 60px; height: 24px; border-radius: 4px;"></div>
+              </div>
+            </div>
           </div>
           <div v-else-if="filteredHistory.length === 0" class="empty-state">
             Tidak ada riwayat pada status yang dipilih.
@@ -942,4 +953,27 @@ const exportByDateRange = async (formatType) => {
 .btn-excel { background: #10b981; }
 .btn-excel:hover:not(:disabled) { background: #059669; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); }
 .btn-download:disabled { opacity: 0.6; cursor: not-allowed; }
+/* Skeleton Loader */
+.skeleton-box {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: loadingSkeleton 1.5s infinite;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-text {
+  height: 12px;
+  border-radius: 4px;
+}
+
+@keyframes loadingSkeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 </style>

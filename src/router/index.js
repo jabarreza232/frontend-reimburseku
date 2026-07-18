@@ -14,6 +14,11 @@ const router = createRouter({
       name: 'login',
       component: () => import('../views/LoginView.vue')
     },
+    {
+        path:'/daftar',
+        name:'register',
+        component: () => import('../views/RegisterView.vue')
+    },
 
     // ─── Rute Staf ───────────────────────────────────────────────
     {

@@ -4,10 +4,14 @@ export default {
     login(credentials) {
         return apiClient.post('/login', credentials)
     },
+    register(data) {
+        return apiClient.post('/register', data)
+    },
+  
     getProfile() {
         return apiClient.get('/user')
     },
-   getMyReimbursementsMessages(page = 1) {
+    getMyReimbursementsMessages(page = 1) {
         // Meneruskan parameter page ke backend
         return apiClient.get(`/reimbursement-message/my-messages?page=${page}`)
     },
@@ -43,10 +47,10 @@ export default {
     },
 
     // FINANCE
-    getSourceFunding(page=1) {
+    getSourceFunding(page = 1) {
         return apiClient.get(`/source-funding?page=${page}`)
     },
-  
+
     getBalanceStats() {
         return apiClient.get('/deposit/get/balance-stats')
     },
@@ -56,7 +60,7 @@ export default {
     getChartWeekly(startDate, endDate) {
         return apiClient.get(`/reimburse/weekly?start_date=${startDate}&end_date=${endDate}`)
     },
-        getChartMonthly(month,year) {
+    getChartMonthly(month, year) {
         return apiClient.get(`/reimburse/monthly?month=${month}&year=${year}`)
     },
     getReimbursementsByMonth(page = 1, period) {
@@ -89,6 +93,13 @@ export default {
         return apiClient.post(`/reimburse/${id}`, data, {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
+    },
+    saveProvider(data) {
+        return axios.post('/api/provider/save', data)
+    },
+    // Pastikan ada method update jika diperlukan saat isEdit = true
+    updateProviderDetail(id, data) {
+        return axios.put(`/api/provider/${id}`, data)
     },
     getDeposits() {
         return apiClient.get('/deposit')

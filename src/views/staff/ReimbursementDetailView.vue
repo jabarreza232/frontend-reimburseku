@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Image as ImageIcon, X, ZoomIn, ZoomOut, User, FileText, History, CheckCircle, XCircle, Clock, BadgeDollarSign } from 'lucide-vue-next'
+import { ArrowLeft, Image as ImageIcon, X, ZoomIn, ZoomOut, RefreshCw, User, FileText, History, CheckCircle, XCircle, Clock, BadgeDollarSign } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
 import { formatRupiah } from '@/utils/format'
@@ -98,11 +98,7 @@ const getLogStyle = (action) => {
 // --- FUNGSI MODAL & ZOOM ---
 const openModal = () => {
   if (!data.value.buktiUrl) return
-  if (data.value.buktiUrl.toLowerCase().endsWith('.pdf')) {
-    window.open(data.value.buktiUrl, '_blank')
-    return
-  }
-  zoomLevel.value = 1 
+  resetZoom()
   isModalOpen.value = true
 }
 
@@ -116,6 +112,34 @@ const zoomIn = () => {
 
 const zoomOut = () => {
   if (zoomLevel.value > 0.5) zoomLevel.value -= 0.25 
+}
+
+const panX = ref(0)
+const panY = ref(0)
+const isDragging = ref(false)
+const startX = ref(0)
+const startY = ref(0)
+
+const onMouseDown = (e) => {
+  isDragging.value = true
+  startX.value = e.clientX - panX.value
+  startY.value = e.clientY - panY.value
+}
+
+const onMouseMove = (e) => {
+  if (!isDragging.value) return
+  panX.value = e.clientX - startX.value
+  panY.value = e.clientY - startY.value
+}
+
+const onMouseUp = () => {
+  isDragging.value = false
+}
+
+const resetZoom = () => {
+  zoomLevel.value = 1
+  panX.value = 0
+  panY.value = 0
 }
 </script>
 
@@ -274,12 +298,27 @@ const zoomOut = () => {
             <X :size="24" />
           </button>
         </div>
-        <div class="image-scroll-container">
+        <div 
+          class="image-container"
+          @mousedown.prevent="onMouseDown"
+          @mousemove.prevent="onMouseMove"
+          @mouseup="onMouseUp"
+          @mouseleave="onMouseUp"
+          :class="{ 'is-dragging': isDragging }"
+        >
+          <iframe
+            v-if="data.buktiUrl && data.buktiUrl.toLowerCase().endsWith('.pdf')"
+            :src="data.buktiUrl"
+            class="pdf-viewer"
+            style="width: 80vw; height: 80vh; border: none; border-radius: 8px;"
+          ></iframe>
           <img 
+            v-else
             :src="data.buktiUrl" 
             alt="Bukti" 
             class="zoomable-image"
-            :style="{ transform: `scale(${zoomLevel})` }" 
+            :style="{ transform: `translate(${panX}px, ${panY}px) scale(${zoomLevel})` }" 
+            draggable="false"
           />
         </div>
         <div class="zoom-controls">
@@ -289,6 +328,9 @@ const zoomOut = () => {
           <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
           <button class="zoom-btn" @click="zoomIn" :disabled="zoomLevel >= 3" title="Zoom In">
             <ZoomIn :size="20" />
+          </button>
+          <button class="zoom-btn" @click="resetZoom" title="Reset View">
+            <RefreshCw :size="20" />
           </button>
         </div>
       </div>

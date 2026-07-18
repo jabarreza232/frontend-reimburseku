@@ -3,15 +3,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ApiService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
+import { useMasterDataStore } from '@/stores/masterData'
 import { ArrowLeft } from 'lucide-vue-next'
 import Swal from 'sweetalert2'
 
-const isLoadingProviders = ref(true)
 const authStore = useAuthStore()
+const masterDataStore = useMasterDataStore()
 const router = useRouter()
 
-// State untuk menyimpan daftar provider dari API
-const providers = ref([])
+// Gunakan computed untuk mengamati perubahan data dari store
+const providers = computed(() => masterDataStore.providers)
+const isLoadingProviders = computed(() => masterDataStore.isLoadingProviders)
 
 const user = ref({
   nama: '',
@@ -29,8 +31,6 @@ const user = ref({
 const isSaving = ref(false)
 
 onMounted(async () => {
-  isLoadingProviders.value = true // Nyalakan loading
-
   // 1. Inisialisasi data user dari state Pinia
   const data = authStore.user || {}
   const accountData = authStore.accountPayout || {}
@@ -48,25 +48,15 @@ onMounted(async () => {
     nama_pemilik: accountData.account_holder_name || ''
   }
 
-  // 2. Fetch data provider dari API
-  try {
-    const res = await ApiService.getProviders()
-    providers.value = res.data?.data || []
+  // 2. Fetch data provider dari Store (hanya menembak API jika belum ada cache)
+  await masterDataStore.fetchProviders()
     
-    // 3. AUTO-SELECT METODE PEMBAYARAN BERDASARKAN provider_code
-    if (accountData.provider_code) {
-      // Cari provider yang kodenya sama dengan yang ada di store ('gopay' == 'gopay')
-      const matchedProvider = providers.value.find(p => p.code_provider === accountData.provider_code)
-      
-      // Jika ketemu, masukkan id_provider-nya ke form agar dropdown otomatis terpilih
-      if (matchedProvider) {
-        user.value.bank = matchedProvider.id_provider
-      }
+  // 3. AUTO-SELECT METODE PEMBAYARAN BERDASARKAN provider_code
+  if (accountData.provider_code) {
+    const matchedProvider = providers.value.find(p => p.code_provider === accountData.provider_code)
+    if (matchedProvider) {
+      user.value.bank = matchedProvider.id_provider
     }
-  } catch (error) {
-    console.error('Gagal mengambil data provider', error)
-  } finally {
-    isLoadingProviders.value = false // Matikan loading
   }
 })
 
@@ -87,6 +77,13 @@ const accountLabel = computed(() => {
 const ewalletProviders = computed(() => {
   return providers.value.filter(p => p.provider_type === 'e-wallet' && p.is_active)
 })
+
+const preventLetters = (event) => {
+  const charCode = event.which ? event.which : event.keyCode;
+  if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+    event.preventDefault(); 
+  }
+}
 
 // Fungsi mencari nama provider berdasarkan kode (untuk ditampilkan di Preview Profile)
 const getProviderName = computed(() => {
@@ -199,16 +196,16 @@ const saveProfile = async () => {
         <div class="form-grid" style="margin-bottom: 1rem;">
           <div class="form-group">
             <label class="form-label">Nama</label>
-            <input v-model="user.nama" type="text" class="form-control" />
+            <input v-model="user.nama" type="text" class="form-control" maxlength="255" />
           </div>
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input v-model="user.email" type="email" class="form-control" />
+            <input v-model="user.email" type="email" class="form-control" maxlength="255" />
           </div>
 
           <div class="form-group">
             <label class="form-label">Nomor Telepon</label>
-            <input v-model="user.telepon" type="text" class="form-control" placeholder="Contoh: 08521387" />
+            <input v-model="user.telepon" type="text" class="form-control" placeholder="Contoh: 08521387" maxlength="20" @keypress="preventLetters" />
           </div>
 
           <div class="form-group">
@@ -233,7 +230,7 @@ const saveProfile = async () => {
           <div class="form-group col-span-2">
             <label class="form-label">Alamat Tinggal</label>
             <textarea v-model="user.alamat" class="form-control" rows="1" style="min-height: 46px;"
-              placeholder="Tuliskan alamat lengkap tinggal Anda..."></textarea>
+              placeholder="Tuliskan alamat lengkap tinggal Anda..." maxlength="1000"></textarea>
           </div>
         </div>
 
@@ -279,13 +276,13 @@ const saveProfile = async () => {
           <div class="form-group">
             <label class="form-label">{{ accountLabel }}</label>
             <input v-model="user.rekening" type="text" class="form-control"
-              :placeholder="accountLabel === 'Nomor Telepon' ? 'Contoh: 0852xxxxxx' : 'Contoh: 8738722xxx'" />
+              :placeholder="accountLabel === 'Nomor Telepon' ? 'Contoh: 0852xxxxxx' : 'Contoh: 8738722xxx'" maxlength="50" @keypress="preventLetters" />
           </div>
 
           <div class="form-group col-span-2">
             <label class="form-label">Atas Nama (A/N)</label>
             <input v-model="user.nama_pemilik" type="text" class="form-control"
-              placeholder="Nama pemilik rekening/e-wallet" />
+              placeholder="Nama pemilik rekening/e-wallet" maxlength="255" />
           </div>
         </div>
 

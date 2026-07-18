@@ -358,11 +358,19 @@ const getBorderColor = (kategori) => {
         </div>
 
         <div class="daftar-container">
-          <div v-if="isLoading" class="loading-overlay">
-            <div class="loading-container">
-            <div class="global-spinner"></div>
-            <p>Memuat riwayat...</p>
-          </div>
+          <div v-if="isLoading" class="daftar-list reimbursement-cards">
+            <div v-for="i in 5" :key="'skel'+i" class="reimbursement-card" style="border-right-color: #e2e8f0;">
+              <div class="card-content">
+                <div class="card-info">
+                  <div class="skeleton-box skeleton-text" style="width: 140px; margin-bottom: 12px;"></div>
+                  <div class="status-badge-container" style="margin-bottom: 8px;">
+                    <div class="skeleton-box" style="width: 80px; height: 24px; border-radius: 12px;"></div>
+                  </div>
+                  <div class="skeleton-box skeleton-text" style="width: 100px; height: 16px;"></div>
+                </div>
+                <div class="skeleton-box skeleton-text" style="width: 70px;"></div>
+              </div>
+            </div>
           </div>
 
           <div v-else-if="dataFiltered.length === 0" class="kosong-teks">
@@ -417,8 +425,10 @@ const getBorderColor = (kategori) => {
       </div>
 
       <div class="kolom-kanan">
-        <h2 class="judul-seksi">Statistik dan Laporan</h2>
-     <div class="grid-statistik">
+        <div class="title-with-filters" style="min-height: 44px;">
+          <h2 class="judul-seksi">Statistik dan Laporan</h2>
+        </div>
+        <div class="grid-statistik">
   <div v-for="s in kategoriStats" :key="s.label" class="kartu-stat" :style="{ background: s.bg }">
     <div class="stat-ikon">
       <component :is="s.ikon" :size="28" />
@@ -795,7 +805,6 @@ const getBorderColor = (kategori) => {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.5rem;
-  padding-top: 2rem;
 }
 .kartu-stat {
   border-radius: 10px;
@@ -1020,5 +1029,21 @@ const getBorderColor = (kategori) => {
   .grid-statistik {
     grid-template-columns: 1fr;
   }
+}
+/* Skeleton Loader */
+.skeleton-box {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: loadingSkeleton 1.5s infinite;
+}
+
+.skeleton-text {
+  height: 12px;
+  border-radius: 4px;
+}
+
+@keyframes loadingSkeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 </style>

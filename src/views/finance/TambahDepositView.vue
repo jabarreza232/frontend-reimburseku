@@ -3,12 +3,16 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronLeft, Wallet, Calendar, Plus, Upload } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
+import { useMasterDataStore } from '@/stores/masterData'
 import Swal from 'sweetalert2'
 
 const router = useRouter()
+const masterDataStore = useMasterDataStore()
 
 // 1. Tambahkan state untuk menyimpan data Source Funding dari API
-const sourceFundings = ref([])
+const sourceFundings = computed(() => masterDataStore.sourceFundings)
+const isLoadingSourceFundings = computed(() => masterDataStore.isLoadingSourceFundings)
+
 const preventLetters = (event) => {
   const charCode = event.which ? event.which : event.keyCode;
   if (charCode > 31 && (charCode < 48 || charCode > 57)) {
@@ -29,16 +33,7 @@ const isSaving = ref(false)
 
 // 2. Fungsi untuk mengambil data Source Funding dari API
 const fetchSourceFunding = async () => {
-  try {
-
-    const response = await ApiService.getSourceFunding()
-
-    if (response.data && response.data.success) {
-      sourceFundings.value = response.data.data
-    }
-  } catch (err) {
-    console.error('Gagal mengambil data Source Funding:', err)
-  }
+  await masterDataStore.fetchSourceFundings()
 }
 
 // 3. Auto-fill 'Tujuan Alokasi' saat dropdown Sumber Dana dipilih
@@ -57,6 +52,11 @@ onMounted(() => {
 const formatCurrency = (event) => {
   // Hanya ambil karakter angka (0-9)
   let rawValue = event.target.value.replace(/[^0-9]/g, '');
+  
+  // Batasi maksimal 13 digit (Triliunan) untuk mencegah SQL Out of Range error
+  if (rawValue.length > 13) {
+    rawValue = rawValue.substring(0, 13);
+  }
 
   if (rawValue) {
     // Format ke standar Indonesia (titik sebagai pemisah ribuan)
@@ -167,7 +167,7 @@ async function submit() {
               </div>
               <div class="form-group">
                 <label>No. Referensi Bank <span class="req">*</span></label>
-                <input v-model="form.ref_bank" type="text" placeholder="Masukkan No. Ref Bank" required />
+                <input v-model="form.ref_bank" type="text" placeholder="Masukkan No. Ref Bank" required maxlength="255" />
               </div>
             </div>
           </div>
@@ -201,7 +201,7 @@ async function submit() {
               </div>
               <div class="form-group" style="grid-column: span 2;">
                 <label>Catatan Tambahan</label>
-                <textarea v-model="form.note" placeholder="Keterangan..." rows="3"></textarea>
+                <textarea v-model="form.note" placeholder="Keterangan..." rows="3" maxlength="1000"></textarea>
               </div>
             </div>
           </div>

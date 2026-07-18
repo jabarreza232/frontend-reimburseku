@@ -10,7 +10,15 @@ const authStore = useAuthStore()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const rememberMe = ref(false)
 const errorMsg = ref('')
+
+// Check local storage for remembered email
+if (localStorage.getItem('rememberedEmail')) {
+  email.value = localStorage.getItem('rememberedEmail')
+  rememberMe.value = true
+}
+
 async function handleLogin() {
   errorMsg.value = ''
   isLoading.value = true
@@ -24,6 +32,13 @@ async function handleLogin() {
 
     // 1. Simpan Token
     authStore.setAuthData(res.data)
+
+    // 2. Remember Me logic
+    if (rememberMe.value) {
+      localStorage.setItem('rememberedEmail', email.value.trim())
+    } else {
+      localStorage.removeItem('rememberedEmail')
+    }
 
     // 3. Redirect berdasarkan role
     const roleSlug = res.data.role.slug
@@ -94,20 +109,29 @@ async function handleLogin() {
         </div>
         <form @submit.prevent="handleLogin">
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <input v-model="email" type="email" class="form-control" placeholder="nama@email.com" required />
+            <label class="form-label" for="email">Email</label>
+            <input id="email" v-model="email" type="email" class="form-control" placeholder="nama@email.com" 
+              required autocomplete="email" autofocus @blur="email = email.trim()" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Password</label>
+            <label class="form-label" for="password">Password</label>
             <div class="input-wrap">
-              <input v-model="password" :type="showPassword ? 'text' : 'password'" class="form-control"
-                placeholder="••••••••" required />
-              <button type="button" class="eye-btn" @click="showPassword = !showPassword">
-                <EyeOff v-if="showPassword" :size="16" />
-                <Eye v-else :size="16" />
+              <input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" class="form-control"
+                placeholder="••••••••" required autocomplete="current-password" />
+              <button type="button" class="eye-btn" @click="showPassword = !showPassword"
+                :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+                <EyeOff v-if="showPassword" :size="16" aria-hidden="true" />
+                <Eye v-else :size="16" aria-hidden="true" />
               </button>
             </div>
+          </div>
+
+          <div class="form-group remember-me-group">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="rememberMe" />
+              <span>Ingat Saya</span>
+            </label>
           </div>
 
           <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
@@ -271,6 +295,30 @@ async function handleLogin() {
 
 .input-wrap .form-control {
   padding-right: 2.75rem;
+}
+
+.remember-me-group {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 .eye-btn {

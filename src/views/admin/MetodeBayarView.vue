@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { Plus, Search, ChevronDown, ChevronLeft, ChevronRight, PencilLine } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
-
+import Swal from 'sweetalert2'
+const isSaving = ref(false)
 const methods = ref([])
 const showModal = ref(false)
 const isEdit = ref(false)
@@ -17,13 +18,13 @@ const fetchProviders = async () => {
   try {
     const res = await ApiService.getProviders()
     const listData = res.data?.data?.data || res.data?.data || []
-    
+
     methods.value = listData.map(m => ({
       id: m.id_provider,
       type: m.provider_name.toLowerCase().includes('bank') ? 'BANK TRANSFER' : 'E-WALLET',
       name: m.provider_name || '-',
-      code: m.provider_code || '-',
-      status: m.status || 'Aktif'
+      code: m.code_provider || '-',
+      is_active: Boolean(m.is_active)
     }))
   } catch (err) {
     console.error('Failed to load providers', err)
@@ -44,7 +45,7 @@ function openEdit(m) {
   isEdit.value = true
   formData.value = {
     id: m.id,
-    provider_type: m.type,
+    provider_type: m.type === 'BANK TRANSFER' ? 'bank-transfer' : 'e-wallet',
     provider_name: m.name,
     code_provider: m.code
   }
@@ -55,8 +56,49 @@ function closeAdd() {
   showModal.value = false
 }
 
-function submitAdd() {
-  closeAdd()
+async function submitAdd() {
+  // 1. Validasi Input
+  if (!formData.value.provider_type || !formData.value.provider_name || !formData.value.code_provider) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Perhatian',
+      text: 'Harap isi semua field yang wajib (*)'
+    })
+    return
+  }
+
+  isSaving.value = true
+  try {
+    // 2. Siapkan Payload sesuai format yang diminta
+    const payload = {
+      provider_name: formData.value.provider_name,
+      provider_type: formData.value.provider_type, // "bank-transfer" atau "e-wallet"
+      code_provider: formData.value.code_provider
+    }
+
+    // 3. Panggil API berdasarkan mode Edit atau Tambah Baru
+    if (isEdit.value && formData.value.id) {
+      // Pastikan ada endpoint update di ApiService jika isEdit = true
+      await ApiService.updateProviderDetail(formData.value.id, payload)
+      Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Metode bayar berhasil diperbarui', timer: 1500, showConfirmButton: false })
+    } else {
+      await ApiService.saveProvider(payload)
+      Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Metode bayar baru berhasil ditambahkan', timer: 1500, showConfirmButton: false })
+    }
+
+    // 4. Tutup modal & Refresh data tabel
+    closeAdd()
+    fetchProviders()
+  } catch (err) {
+    console.error('Gagal menyimpan provider:', err)
+    Swal.fire({
+      icon: 'error',
+      title: 'Gagal',
+      text: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data'
+    })
+  } finally {
+    isSaving.value = false
+  }
 }
 
 async function toggleStatus(id) {
@@ -67,10 +109,17 @@ async function toggleStatus(id) {
       const newStatus = m.status === 'Aktif' ? 'Tidak Aktif' : 'Aktif'
       await ApiService.updateProvider(id, {
         provider_name: m.name,
-        provider_code: m.code,
-        status: newStatus
+        provider_code: m.code_provider,
+        is_active: newStatus === 'Aktif' ? 1 : 0
       })
-      m.status = newStatus
+      m.is_active = newStatus
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Status metode bayar berhasil diperbarui',
+        timer: 1500,
+        showConfirmButton: false
+      })
     } catch (err) {
       alert('Gagal mengubah status')
     }
@@ -96,7 +145,8 @@ const filteredMethods = computed(() => {
           </div>
           <div class="sort-dropdown">
             <button class="btn btn-outline btn-sort">
-              Urutkan <ChevronDown :size="12" />
+              Urutkan
+              <ChevronDown :size="12" />
             </button>
           </div>
           <button class="btn btn-primary btn-add" @click="openAdd">
@@ -116,24 +166,26 @@ const filteredMethods = computed(() => {
               <th width="140" class="text-center">AKSI</th>
             </tr>
           </thead>
-          <tbody>
+        <tbody>
             <tr v-for="m in filteredMethods" :key="m.id">
               <td class="text-muted font-bold">{{ m.type }}</td>
               <td class="font-semibold">{{ m.name }}</td>
               <td class="text-muted font-mono">{{ m.code }}</td>
+              
               <td>
-                <span class="status-badge" :class="m.status === 'Aktif' ? 'active' : 'inactive'">
-                  {{ m.status }}
+                <span class="status-badge" :class="m.is_active ? 'active' : 'inactive'">
+                  {{ m.is_active ? 'Aktif' : 'Tidak Aktif' }}
                 </span>
               </td>
+              
               <td class="text-center">
                 <button 
                   class="btn btn-xs" 
-                  :class="m.status === 'Aktif' ? 'btn-danger-outline' : 'btn-success'"
-                  @click="toggleStatus(m.id)"
+                  :class="m.is_active ? 'btn-danger-outline' : 'btn-success'"
+                  @click="toggleStatus(m.id)" 
                   style="margin-right: 0.25rem;"
                 >
-                  {{ m.status === 'Aktif' ? 'Non-Aktifkan' : 'Aktivasi' }}
+                  {{ m.is_active ? 'Non-Aktifkan' : 'Aktivasi' }}
                 </button>
                 <button class="btn btn-xs btn-primary-outline" @click="openEdit(m)">Edit</button>
               </td>
@@ -145,10 +197,14 @@ const filteredMethods = computed(() => {
       <div class="table-footer">
         <p class="text-muted text-xs">Menampilkan {{ filteredMethods.length }} data</p>
         <div class="pagination" v-if="Math.ceil(filteredMethods.length / 10) > 1">
-          <button class="page-btn"><ChevronLeft :size="12" /></button>
+          <button class="page-btn">
+            <ChevronLeft :size="12" />
+          </button>
           <button class="page-btn active">1</button>
           <button class="page-btn" v-for="p in Math.ceil(filteredMethods.length / 10) - 1" :key="p">{{ p + 1 }}</button>
-          <button class="page-btn"><ChevronRight :size="12" /></button>
+          <button class="page-btn">
+            <ChevronRight :size="12" />
+          </button>
         </div>
       </div>
     </div>
@@ -168,26 +224,28 @@ const filteredMethods = computed(() => {
         <div class="modal-panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem;">
           <div class="form-group">
             <label>Tipe Layanan <span class="required">*</span></label>
-            <select v-model="formData.provider_type" class="form-control">
+            <select v-model="formData.provider_type" class="form-control" :disabled="isSaving">
               <option value="">Pilih tipe layanan</option>
-              <option value="BANK TRANSFER">Bank Transfer</option>
-              <option value="E-WALLET">E-Wallet</option>
+              <option value="bank-transfer">Bank Transfer</option>
+              <option value="e-wallet">E-Wallet</option>
             </select>
           </div>
           <div class="form-group">
             <label>Kode Layanan <span class="required">*</span></label>
-            <input v-model="formData.code_provider" type="text" class="form-control" placeholder="Contoh: BCA / GOPAY" />
+            <input v-model="formData.code_provider" type="text" class="form-control"
+              placeholder="Contoh: BCA / GOPAY" />
           </div>
           <div class="form-group col-span-2">
             <label>Nama Layanan Lengkap <span class="required">*</span></label>
-            <input v-model="formData.provider_name" type="text" class="form-control" placeholder="Contoh: Bank Central Asia / GoPay Indonesia" />
+            <input v-model="formData.provider_name" type="text" class="form-control"
+              placeholder="Contoh: Bank Central Asia / GoPay Indonesia" />
           </div>
         </div>
         <div class="modal-panel-footer">
-          <button class="btn btn-outline" @click="closeAdd">Batal</button>
-          <button class="btn btn-primary btn-save" @click="submitAdd">
+          <button class="btn btn-outline" @click="closeAdd" :disabled="isSaving">Batal</button>
+          <button class="btn btn-primary btn-save" @click="submitAdd" :disabled="isSaving">
             <component :is="isEdit ? PencilLine : Plus" :size="14" />
-            {{ isEdit ? 'Simpan Perubahan' : 'Tambah Metode Bayar' }}
+            {{ isSaving ? 'Memproses...' : (isEdit ? 'Simpan Perubahan' : 'Tambah Metode Bayar') }}
           </button>
         </div>
       </div>
@@ -196,8 +254,54 @@ const filteredMethods = computed(() => {
 </template>
 
 <style scoped>
-.metode-bayar-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
-.btn-xs { padding: 0.3rem 0.75rem; font-size: 0.7rem; font-weight: 700; border-radius: 6px; cursor: pointer; }
-.btn-success { background: #22c55e; color: white; border: none; }
-.btn-danger-outline { background: white; color: #ef4444; border: 1px solid #fecaca; }
+.metode-bayar-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.btn-xs {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  /* Tambahan agar animasi hover halus */
+}
+
+.btn-success {
+  background: #22c55e;
+  color: white;
+  border: 1px solid #22c55e;
+}
+
+.btn-success:hover {
+  background: #16a34a;
+}
+
+.btn-danger-outline {
+  background: white;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+}
+
+.btn-danger-outline:hover {
+  background: #fef2f2;
+}
+
+/* Tambahkan ini untuk tombol Edit */
+.btn-primary-outline {
+  background: white;
+  color: #3b82f6;
+  border: 1px solid #bfdbfe;
+}
+
+.btn-primary-outline:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
 </style>
