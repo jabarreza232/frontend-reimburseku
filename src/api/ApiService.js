@@ -7,7 +7,7 @@ export default {
     register(data) {
         return apiClient.post('/register', data)
     },
-  
+
     getProfile() {
         return apiClient.get('/user')
     },
@@ -45,7 +45,12 @@ export default {
     getLogApprovalReimbursement(id) {
         return apiClient.get(`/approval-reimbursement/log/${id}`)
     },
-
+    getLogApprovals() {
+        return apiClient.get('/approval-reimbursement/log-all');
+    },
+    getLogCompanyDeposits() {
+        return apiClient.get('/deposit/log-all');
+    },
     // FINANCE
     getSourceFunding(page = 1) {
         return apiClient.get(`/source-funding?page=${page}`)
@@ -81,6 +86,9 @@ export default {
     },
 
     // FINANCE / ADMIN
+    getAccountPayouts() {
+        return apiClient.get('/account-payout'); // Sesuaikan dengan URL endpoint API-mu
+    },
     getApprovalReimbursements() {
         return apiClient.get('/approval-reimbursement')
     },
@@ -161,6 +169,9 @@ export default {
     },
 
     // ADMIN - Role
+    saveReimbursementMessage(data) {
+        return apiClient.post('/reimbursement-message/save', data);
+    },
     getRoles() {
         return apiClient.get('/role')
     },
@@ -177,6 +188,9 @@ export default {
     // ADMIN - Deposit
     updateDeposit(id, data) {
         return apiClient.post(`/deposit/${id}`, data)
+    },
+    getDepositsByMonth(month) {
+        return apiClient.get(`/deposit/filter/month?month=${month}`);
     },
     deleteDeposit(id) {
         return apiClient.delete(`/deposit/delete/${id}`)

@@ -1,10 +1,36 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Plus, PencilLine, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Plus, PencilLine, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight, X, Check, Download, FileText, FileSpreadsheet } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
 import Swal from 'sweetalert2'
 
+// Import jsPDF dan autoTable
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
 const roles = ref([])
+
+// === STATE UNTUK CUSTOM SORT & EXPORT ===
+const showSortMenu = ref(false)
+const showExportMenu = ref(false)
+const currentSort = ref('name-asc') // Default urutan A-Z
+
+const sortOptions = [
+  { label: 'Nama Hak (A - Z)', value: 'name-asc' },
+  { label: 'Nama Hak (Z - A)', value: 'name-desc' },
+  { label: 'Slug (A - Z)', value: 'slug-asc' },
+  { label: 'Slug (Z - A)', value: 'slug-desc' },
+]
+
+// Fungsi tutup dropdown kalau klik di luar
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.sort-dropdown')) {
+    showSortMenu.value = false
+  }
+  if (!event.target.closest('.export-dropdown')) {
+    showExportMenu.value = false
+  }
+}
 
 const fetchRoles = async () => {
   try {
@@ -13,7 +39,9 @@ const fetchRoles = async () => {
     
     roles.value = listData.map(r => {
       const slug = (r.role_name || '').toLowerCase().replace(/ /g, '-')
-      const perms = r.permissions || null
+      // Pastikan parse JSON permissions dari database
+      const perms = typeof r.permissions === 'string' ? JSON.parse(r.permissions) : (r.permissions || null)
+      
       let parsed = initPermissions()
       if (perms && typeof perms === 'object') {
         Object.keys(perms).forEach(mk => {
@@ -34,11 +62,91 @@ const fetchRoles = async () => {
   }
 }
 
-onMounted(fetchRoles)
+onMounted(() => {
+  fetchRoles()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// === FUNGSI EXPORT ===
+
+const exportToExcel = () => {
+  showExportMenu.value = false
+  
+  const headers = ['NO', 'NAMA HAK', 'SLUG', 'DESKRIPSI']
+  
+  const rows = filteredRoles.value.map((r, index) => [
+    index + 1,
+    `"${r.name}"`,
+    `"${r.slug}"`,
+    `"${r.description.replace(/"/g, '""')}"`
+  ])
+
+  const csvContent = headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', 'Data_Hak_Akses.csv')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+const exportToPDF = () => {
+  showExportMenu.value = false
+  
+  const doc = new jsPDF()
+
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Data Hak Akses', 14, 20)
+
+  const tableColumn = ["NO", "NAMA HAK", "SLUG", "DESKRIPSI"]
+  const tableRows = []
+
+  filteredRoles.value.forEach((r, index) => {
+    tableRows.push([
+      index + 1,
+      r.name,
+      r.slug,
+      r.description
+    ])
+  })
+
+  autoTable(doc, {
+    head: [tableColumn],
+    body: tableRows,
+    startY: 28,
+    theme: 'grid',
+    styles: {
+      fontSize: 10,
+      cellPadding: 4,
+    },
+    headStyles: {
+      fillColor: [37, 99, 235],
+      textColor: 255,
+      halign: 'center'
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 15 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 40 },
+      3: { cellWidth: 'auto' }
+    }
+  })
+
+  doc.save('Data_Hak_Akses.pdf')
+}
+
+// ==========================================
+// API & LOGIC MODAL
+// ==========================================
 
 const searchQuery = ref('')
-
-
 const showModal = ref(false)
 const isEdit = ref(false)
 const editId = ref(null)
@@ -64,6 +172,20 @@ function initPermissions() {
   return perms
 }
 
+// Fungsi memunculkan Toast "Dalam Pengembangan"
+function showDevelopmentToast() {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'info',
+    title: 'Fitur Tambah Akses sedang dalam tahap pengembangan',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+  })
+}
+
+// OpenAdd tidak digunakan di button, tapi biarkan fungsinya jika nanti dibutuhkan
 function openAdd() {
   isEdit.value = false
   editId.value = null
@@ -74,15 +196,22 @@ function openAdd() {
 function openEdit(r) {
   isEdit.value = true
   editId.value = r.id
-  formData.value = { role_name: r.name, description: r.description, permissions: r.permissions ? JSON.parse(JSON.stringify(r.permissions)) : initPermissions() }
+  // Parse permissions agar terpisah dari reference aslinya
+  formData.value = { 
+    role_name: r.name, 
+    description: r.description, 
+    permissions: r.permissions ? JSON.parse(JSON.stringify(r.permissions)) : initPermissions() 
+  }
   showModal.value = true
 }
 
 function togglePerm(moduleKey, perm) {
+  if (isEdit.value) return // Cegah jika tembus event
   formData.value.permissions[moduleKey][perm] = !formData.value.permissions[moduleKey][perm]
 }
 
 function toggleAllModule(moduleKey, perms) {
+  if (isEdit.value) return // Cegah jika tembus event
   const allChecked = perms.every(p => formData.value.permissions[moduleKey][p])
   perms.forEach(p => { formData.value.permissions[moduleKey][p] = !allChecked })
 }
@@ -91,20 +220,29 @@ function closeAdd() {
   showModal.value = false
 }
 
+// === FUNGSI SUBMIT (API SAVE & UPDATE) ===
 async function submitAdd() {
   try {
+    const payload = {
+      role_name: formData.value.role_name,
+      description: formData.value.description,
+      permissions: formData.value.permissions
+    }
+
     if (isEdit.value) {
-      await ApiService.updateRole(editId.value, formData.value)
+      await ApiService.updateRole(editId.value, payload)
       Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Hak Akses berhasil diupdate.', showConfirmButton: false, timer: 1500 })
     } else {
-      await ApiService.saveRole(formData.value)
+      await ApiService.saveRole(payload)
       Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Hak Akses berhasil ditambahkan.', showConfirmButton: false, timer: 1500 })
     }
+    
     fetchRoles()
     closeAdd()
   } catch (err) {
-    Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal menyimpan Hak Akses' })
-    console.error(err)
+    const errorMsg = err.response?.data?.message || 'Gagal menyimpan Hak Akses'
+    Swal.fire({ icon: 'error', title: 'Gagal', text: errorMsg })
+    console.error('Error Submit Role:', err)
   }
 }
 
@@ -133,14 +271,27 @@ const deleteRole = async (id) => {
 }
 
 const filteredRoles = computed(() => {
-  return roles.value.filter(r => r.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  let result = roles.value.filter(r => 
+    r.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+
+  if (currentSort.value === 'name-asc') {
+    result.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (currentSort.value === 'name-desc') {
+    result.sort((a, b) => b.name.localeCompare(a.name))
+  } else if (currentSort.value === 'slug-asc') {
+    result.sort((a, b) => a.slug.localeCompare(b.slug))
+  } else if (currentSort.value === 'slug-desc') {
+    result.sort((a, b) => b.slug.localeCompare(a.slug))
+  }
+
+  return result
 })
 </script>
 
 <template>
   <div class="hak-akses-page">
     
-
     <div class="card main-card">
       <div class="card-header">
         <h2 class="card-header-title">Hak Akses</h2>
@@ -149,13 +300,48 @@ const filteredRoles = computed(() => {
             <Search :size="14" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Cari hak akses..." class="search-input" />
           </div>
+
+          <!-- CUSTOM SORT DROPDOWN -->
           <div class="sort-dropdown">
-            <button class="btn btn-outline btn-sort">
+            <button class="btn btn-outline btn-sort" @click="showSortMenu = !showSortMenu">
               Urutkan <ChevronDown :size="12" />
             </button>
+            <transition name="fade-down">
+              <div v-if="showSortMenu" class="custom-dropdown-menu">
+                <div 
+                  v-for="option in sortOptions" 
+                  :key="option.value" 
+                  class="dropdown-item"
+                  :class="{ active: currentSort === option.value }"
+                  @click="currentSort = option.value; showSortMenu = false"
+                >
+                  <span>{{ option.label }}</span>
+                  <Check v-if="currentSort === option.value" :size="14" class="text-primary" />
+                </div>
+              </div>
+            </transition>
           </div>
-          <button class="btn btn-primary btn-add" @click="openAdd">
-            <Plus :size="14" /> Tambah Hak Akses
+
+          <!-- EXPORT DROPDOWN -->
+          <div class="export-dropdown" style="position: relative;">
+            <button class="btn btn-outline btn-export" @click="showExportMenu = !showExportMenu">
+              <Download :size="14" /> Export <ChevronDown :size="12" />
+            </button>
+            <transition name="fade-down">
+              <div v-if="showExportMenu" class="custom-dropdown-menu export-menu">
+                <div class="dropdown-item" @click="exportToPDF">
+                  <FileText :size="14" class="text-danger" /> <span>Export to PDF</span>
+                </div>
+                <div class="dropdown-item" @click="exportToExcel">
+                  <FileSpreadsheet :size="14" class="text-success" /> <span>Export to Excel (CSV)</span>
+                </div>
+              </div>
+            </transition>
+          </div>
+
+          <!-- TOMBOL TAMBAH HAK AKSES (Disabled Visual + Memanggil Toast) -->
+          <button class="btn btn-primary btn-add" @click="showDevelopmentToast" style="opacity: 0.6; cursor: not-allowed;">
+            <Plus :size="14" /> Tamb Hak Akses
           </button>
         </div>
       </div>
@@ -197,7 +383,7 @@ const filteredRoles = computed(() => {
       </div>
     </div>
 
-    <!-- Modal Tambah Hak Akses -->
+    <!-- Modal Edit Hak Akses -->
     <div v-if="showModal" class="modal-overlay" @click.self="closeAdd">
       <div class="modal-panel modal-wide">
         <div class="modal-panel-header">
@@ -236,14 +422,26 @@ const filteredRoles = computed(() => {
             <div class="perm-grid">
               <div v-for="mod in permissionModules" :key="mod.key" class="perm-card">
                 <div class="perm-card-header">
-                  <label class="perm-check perm-check-all">
-                    <input type="checkbox" :checked="mod.perms.every(p => formData.permissions[mod.key]?.[p])" @change="toggleAllModule(mod.key, mod.perms)" />
+                  <!-- Checkbox Modul Utama dengan atribut :disabled="isEdit" -->
+                  <label class="perm-check perm-check-all" :class="{ 'disabled-check': isEdit }">
+                    <input 
+                      type="checkbox" 
+                      :checked="mod.perms.every(p => formData.permissions[mod.key]?.[p])" 
+                      @change="toggleAllModule(mod.key, mod.perms)" 
+                      :disabled="isEdit"
+                    />
                     <span class="perm-module-name">{{ mod.label }}</span>
                   </label>
                 </div>
                 <div class="perm-card-body">
-                  <label v-for="perm in mod.perms" :key="perm" class="perm-check">
-                    <input type="checkbox" :checked="formData.permissions[mod.key]?.[perm]" @change="togglePerm(mod.key, perm)" />
+                  <!-- Checkbox Sub Modul dengan atribut :disabled="isEdit" -->
+                  <label v-for="perm in mod.perms" :key="perm" class="perm-check" :class="{ 'disabled-check': isEdit }">
+                    <input 
+                      type="checkbox" 
+                      :checked="formData.permissions[mod.key]?.[perm]" 
+                      @change="togglePerm(mod.key, perm)" 
+                      :disabled="isEdit"
+                    />
                     <span>{{ perm }}</span>
                   </label>
                 </div>
@@ -264,6 +462,32 @@ const filteredRoles = computed(() => {
 </template>
 
 <style scoped>
+/* CUSTOM DROPDOWN STYLE */
+.sort-dropdown, .export-dropdown { position: relative; }
+.btn-export { display: flex; align-items: center; gap: 0.35rem; }
+.text-danger { color: #ef4444; }
+.text-success { color: #10b981; }
+
+.custom-dropdown-menu {
+  position: absolute; top: calc(100% + 0.5rem); right: 0; background-color: #ffffff;
+  border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 200px; z-index: 50; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
+}
+.export-menu { min-width: 200px; }
+.dropdown-item {
+  display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; color: #4b5563; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
+}
+.export-menu .dropdown-item { justify-content: flex-start; gap: 0.5rem; }
+.dropdown-item:hover { background-color: #f3f4f6; color: #111827; }
+.dropdown-item.active { background-color: #eff6ff; color: #2563eb; font-weight: 500; }
+.text-primary { color: #2563eb; }
+
+/* Transisi Halus untuk Dropdown */
+.fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* CSS Bawaan */
 .hak-akses-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
 textarea.form-control { resize: vertical; min-height: 80px; }
 .perm-section { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
@@ -278,7 +502,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .perm-card-header { margin-bottom: 0.5rem; }
 .perm-card-body { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
 .perm-check { display: inline-flex; align-items: center; gap: 0.375rem; cursor: pointer; font-size: 0.75rem; color: #475569; user-select: none; }
+
+/* Menangani styling jika checkbox disabled */
 .perm-check input[type="checkbox"] { width: 14px; height: 14px; accent-color: #3b82f6; cursor: pointer; border-radius: 3px; }
+.perm-check input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.6; }
+.disabled-check { cursor: not-allowed !important; opacity: 0.7; }
+
 .perm-check-all { font-weight: 600; color: #1e293b; }
 .perm-module-name { font-size: 0.8125rem; }
 </style>

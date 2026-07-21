@@ -1,8 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Plus, Search, ChevronDown, ChevronLeft, ChevronRight, PencilLine } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Plus, Search, ChevronDown, ChevronLeft, ChevronRight, PencilLine, Check, Download, FileText, FileSpreadsheet } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
 import Swal from 'sweetalert2'
+
+// Import jsPDF dan autoTable
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+
 const isSaving = ref(false)
 const methods = ref([])
 const showModal = ref(false)
@@ -13,6 +18,28 @@ const formData = ref({
   provider_name: '',
   code_provider: ''
 })
+
+// === STATE UNTUK CUSTOM SORT & EXPORT ===
+const showSortMenu = ref(false)
+const showExportMenu = ref(false)
+const currentSort = ref('name-asc') // Default urutan A-Z
+
+const sortOptions = [
+  { label: 'Nama (A - Z)', value: 'name-asc' },
+  { label: 'Nama (Z - A)', value: 'name-desc' },
+  { label: 'Status (Aktif di atas)', value: 'status-active' },
+  { label: 'Status (Non-Aktif di atas)', value: 'status-inactive' },
+]
+
+// Fungsi tutup dropdown kalau klik di luar
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.sort-dropdown')) {
+    showSortMenu.value = false
+  }
+  if (!event.target.closest('.export-dropdown')) {
+    showExportMenu.value = false
+  }
+}
 
 const fetchProviders = async () => {
   try {
@@ -31,7 +58,102 @@ const fetchProviders = async () => {
   }
 }
 
-onMounted(fetchProviders)
+onMounted(() => {
+  fetchProviders()
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// === FUNGSI EXPORT ===
+
+// 1. Export ke Excel (CSV)
+const exportToExcel = () => {
+  showExportMenu.value = false
+  
+  // Header kolom
+  const headers = ['NO', 'BANK / E-WALLET', 'NAMA LAYANAN', 'KODE LAYANAN', 'STATUS']
+  
+  // Mapping data baris
+  const rows = filteredMethods.value.map((m, index) => [
+    index + 1,
+    `"${m.type}"`,
+    `"${m.name}"`,
+    `"${m.code}"`,
+    `"${m.is_active ? 'Aktif' : 'Tidak Aktif'}"`
+  ])
+
+  // Gabungkan jadi string CSV
+  const csvContent = headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n')
+  
+  // Download file
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', 'Data_Metode_Bayar.csv')
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// 2. Export ke PDF (jsPDF)
+const exportToPDF = () => {
+  showExportMenu.value = false
+  
+  const doc = new jsPDF()
+
+  // Tambahkan Judul
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Data Metode Bayar', 14, 20)
+
+  const tableColumn = ["NO", "BANK / E-WALLET", "NAMA LAYANAN", "KODE LAYANAN", "STATUS"]
+  const tableRows = []
+
+  filteredMethods.value.forEach((m, index) => {
+    tableRows.push([
+      index + 1,
+      m.type,
+      m.name,
+      m.code,
+      m.is_active ? 'Aktif' : 'Tidak Aktif'
+    ])
+  })
+
+  // Generate tabel dengan autoTable
+  autoTable(doc, {
+    head: [tableColumn],
+    body: tableRows,
+    startY: 28,
+    theme: 'grid',
+    styles: {
+      fontSize: 10,
+      cellPadding: 4,
+    },
+    headStyles: {
+      fillColor: [37, 99, 235],
+      textColor: 255,
+      halign: 'center'
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 15 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 60 },
+      3: { cellWidth: 35 },
+      4: { halign: 'center', cellWidth: 30 }
+    }
+  })
+
+  // Unduh otomatis file PDF-nya
+  doc.save('Data_Metode_Bayar.pdf')
+}
+
+// ==========================================
+// API & LOGIC UTAMA
+// ==========================================
 
 const searchQuery = ref('')
 
@@ -57,7 +179,6 @@ function closeAdd() {
 }
 
 async function submitAdd() {
-  // 1. Validasi Input
   if (!formData.value.provider_type || !formData.value.provider_name || !formData.value.code_provider) {
     Swal.fire({
       icon: 'warning',
@@ -69,16 +190,13 @@ async function submitAdd() {
 
   isSaving.value = true
   try {
-    // 2. Siapkan Payload sesuai format yang diminta
     const payload = {
       provider_name: formData.value.provider_name,
-      provider_type: formData.value.provider_type, // "bank-transfer" atau "e-wallet"
+      provider_type: formData.value.provider_type,
       code_provider: formData.value.code_provider
     }
 
-    // 3. Panggil API berdasarkan mode Edit atau Tambah Baru
     if (isEdit.value && formData.value.id) {
-      // Pastikan ada endpoint update di ApiService jika isEdit = true
       await ApiService.updateProviderDetail(formData.value.id, payload)
       Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Metode bayar berhasil diperbarui', timer: 1500, showConfirmButton: false })
     } else {
@@ -86,7 +204,6 @@ async function submitAdd() {
       Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Metode bayar baru berhasil ditambahkan', timer: 1500, showConfirmButton: false })
     }
 
-    // 4. Tutup modal & Refresh data tabel
     closeAdd()
     fetchProviders()
   } catch (err) {
@@ -104,13 +221,12 @@ async function submitAdd() {
 async function toggleStatus(id) {
   const m = methods.value.find(x => x.id === id)
   if (m) {
-    // Assuming backend endpoint /provider/{id} handles partial updates or status toggles
     try {
-      const newStatus = m.status === 'Aktif' ? 'Tidak Aktif' : 'Aktif'
+      const newStatus = !m.is_active
       await ApiService.updateProvider(id, {
         provider_name: m.name,
         provider_code: m.code_provider,
-        is_active: newStatus === 'Aktif' ? 1 : 0
+        is_active: newStatus ? 1 : 0
       })
       m.is_active = newStatus
       Swal.fire({
@@ -127,14 +243,26 @@ async function toggleStatus(id) {
 }
 
 const filteredMethods = computed(() => {
-  return methods.value.filter(m => m.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+  let result = methods.value.filter(m => 
+    m.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+
+  if (currentSort.value === 'name-asc') {
+    result.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (currentSort.value === 'name-desc') {
+    result.sort((a, b) => b.name.localeCompare(a.name))
+  } else if (currentSort.value === 'status-active') {
+    result.sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+  } else if (currentSort.value === 'status-inactive') {
+    result.sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? 1 : -1))
+  }
+
+  return result
 })
 </script>
 
 <template>
   <div class="metode-bayar-page">
-
-
     <div class="card main-card">
       <div class="card-header">
         <h2 class="card-header-title">Daftar Metode Bayar</h2>
@@ -143,12 +271,48 @@ const filteredMethods = computed(() => {
             <Search :size="14" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Cari metode bayar..." class="search-input" />
           </div>
+          
+          <!-- CUSTOM SORT DROPDOWN -->
           <div class="sort-dropdown">
-            <button class="btn btn-outline btn-sort">
+            <button class="btn btn-outline btn-sort" @click="showSortMenu = !showSortMenu">
               Urutkan
               <ChevronDown :size="12" />
             </button>
+
+            <!-- Menu Dropdown -->
+            <transition name="fade-down">
+              <div v-if="showSortMenu" class="custom-dropdown-menu">
+                <div 
+                  v-for="option in sortOptions" 
+                  :key="option.value" 
+                  class="dropdown-item"
+                  :class="{ active: currentSort === option.value }"
+                  @click="currentSort = option.value; showSortMenu = false"
+                >
+                  <span>{{ option.label }}</span>
+                  <Check v-if="currentSort === option.value" :size="14" class="text-primary" />
+                </div>
+              </div>
+            </transition>
           </div>
+
+          <!-- EXPORT DROPDOWN -->
+          <div class="export-dropdown" style="position: relative;">
+            <button class="btn btn-outline btn-export" @click="showExportMenu = !showExportMenu">
+              <Download :size="14" /> Export <ChevronDown :size="12" />
+            </button>
+            <transition name="fade-down">
+              <div v-if="showExportMenu" class="custom-dropdown-menu export-menu">
+                <div class="dropdown-item" @click="exportToPDF">
+                  <FileText :size="14" class="text-danger" /> <span>Export to PDF</span>
+                </div>
+                <div class="dropdown-item" @click="exportToExcel">
+                  <FileSpreadsheet :size="14" class="text-success" /> <span>Export to Excel (CSV)</span>
+                </div>
+              </div>
+            </transition>
+          </div>
+
           <button class="btn btn-primary btn-add" @click="openAdd">
             <Plus :size="14" /> Tambah Metode
           </button>
@@ -166,7 +330,7 @@ const filteredMethods = computed(() => {
               <th width="140" class="text-center">AKSI</th>
             </tr>
           </thead>
-        <tbody>
+          <tbody>
             <tr v-for="m in filteredMethods" :key="m.id">
               <td class="text-muted font-bold">{{ m.type }}</td>
               <td class="font-semibold">{{ m.name }}</td>
@@ -254,6 +418,79 @@ const filteredMethods = computed(() => {
 </template>
 
 <style scoped>
+/* CUSTOM DROPDOWN STYLE */
+.sort-dropdown, .export-dropdown {
+  position: relative;
+}
+
+.btn-export { display: flex; align-items: center; gap: 0.35rem; }
+.text-danger { color: #ef4444; }
+.text-success { color: #10b981; }
+
+.custom-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 220px;
+  z-index: 50;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.export-menu {
+  min-width: 200px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.export-menu .dropdown-item {
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.dropdown-item:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.dropdown-item.active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.text-primary {
+  color: #2563eb;
+}
+
+/* Transisi Halus untuk Dropdown */
+.fade-down-enter-active,
+.fade-down-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-down-enter-from,
+.fade-down-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* CSS Asli yang Sudah Ada */
 .metode-bayar-page {
   display: flex;
   flex-direction: column;
@@ -270,7 +507,6 @@ const filteredMethods = computed(() => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  /* Tambahan agar animasi hover halus */
 }
 
 .btn-success {
@@ -293,7 +529,6 @@ const filteredMethods = computed(() => {
   background: #fef2f2;
 }
 
-/* Tambahkan ini untuk tombol Edit */
 .btn-primary-outline {
   background: white;
   color: #3b82f6;

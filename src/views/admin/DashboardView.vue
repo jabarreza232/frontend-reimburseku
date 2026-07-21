@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, defineAsyncComponent, computed } from 'vue'
+import { ref, onMounted, defineAsyncComponent, computed, watch } from 'vue'
 import { User, FileText, Bell, ChevronLeft, ChevronRight, X, Send } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
 import Swal from 'sweetalert2'
@@ -35,18 +35,37 @@ const donutOptions = ref({
 })
 
 const donutSeries = ref([])
-const waitingList = ref([])
-const logs = ref([])
-const isLoading = ref(true)
 
-// State baru untuk Paginasi dari JSON "meta"
+// === STATE MENUNGGU PERSETUJUAN ===
+const pendingReimbursements = ref([])
+const waitingList = ref([])
+const pendingCategoryFilter = ref('Semua')
+
+// Hitung kategori apa saja yang tersedia di list yang pending
+const availablePendingCategories = computed(() => {
+  const cats = new Set(pendingReimbursements.value.map(item => item.category))
+  return ['Semua', ...Array.from(cats)]
+})
+
+// Filter data pending berdasarkan kategori
+const filteredPendingList = computed(() => {
+  if (pendingCategoryFilter.value === 'Semua') return pendingReimbursements.value
+  return pendingReimbursements.value.filter(item => item.category === pendingCategoryFilter.value)
+})
+
 const pagination = ref({
   currentPage: 1,
   lastPage: 1,
   total: 0
 })
 
-const pendingReimbursements = ref([])
+// Watcher agar setiap kali list berubah (karena filter/data baru), paginasi reset & update
+watch(filteredPendingList, (newList) => {
+  pagination.value.total = newList.length
+  pagination.value.lastPage = Math.ceil(newList.length / 5) || 1
+  pagination.value.currentPage = 1
+  updateWaitingList()
+})
 
 const changePage = (page) => {
   if (page >= 1 && page <= pagination.value.lastPage) {
@@ -57,25 +76,20 @@ const changePage = (page) => {
 
 const updateWaitingList = () => {
   const start = (pagination.value.currentPage - 1) * 5
-  waitingList.value = pendingReimbursements.value.slice(start, start + 5)
+  waitingList.value = filteredPendingList.value.slice(start, start + 5)
 }
 
-// Mapping statis untuk category_id (karena JSON tidak memiliki category_name)
-const categoryMap = {
-  1: 'Transportasi',
-  2: 'Makanan',
-  4: 'Parkir',
-  5: 'Dan-lain-lain'
-}
+const logs = ref([])
+const isLoading = ref(true)
+const financeUsers = ref([]) // State untuk menyimpan user Finance
 
-// Menghitung total untuk donut chart menggunakan category_id
 const populateDonutData = (reimbursements) => {
   const catTotals = {}
   let totalAll = 0
 
   reimbursements.forEach(item => {
-    // Ambil nama kategori dari mapping ID
-    const catName = categoryMap[item.category_id] || 'Lain-lain'
+    // Memakai category_name dari response
+    const catName = item.category_name || 'Lain-lain'
     if (!catTotals[catName]) catTotals[catName] = 0
     catTotals[catName] += item.amount
     totalAll += item.amount
@@ -88,9 +102,9 @@ const populateDonutData = (reimbursements) => {
 
     categories.value = sortedCats.map((cat, index) => {
       const labelLower = cat[0].toLowerCase();
-      let color = '#3b82f6'; // Default Blue (Lain-lain)
+      let color = '#3b82f6'; // Default Blue
       if (labelLower.includes('transport')) color = '#10b981'; // Green
-      else if (labelLower.includes('makan') || labelLower.includes('minum')) color = '#ef4444'; // Red/Pink
+      else if (labelLower.includes('makan') || labelLower.includes('minum')) color = '#ef4444'; // Red
       else if (labelLower.includes('parkir')) color = '#8b5cf6'; // Purple
       
       return {
@@ -112,29 +126,30 @@ const populateDonutData = (reimbursements) => {
 
 onMounted(async () => {
   try {
-    const [empRes, reimbRes] = await Promise.allSettled([
+    const [empRes, reimbRes, logAppRes, logDepRes] = await Promise.allSettled([
       ApiService.getEmployees(),
-      ApiService.getReimbursements()
+      ApiService.getReimbursements(),
+      ApiService.getLogApprovals(),      
+      ApiService.getLogCompanyDeposits() 
     ])
 
+    // --- DATA KARYAWAN & FINANCE USERS ---
     const employees = empRes.status === 'fulfilled' && empRes.value.data?.data ? (empRes.value.data.data.data || empRes.value.data.data) : []
     stats.value[0].value = employees.length.toString()
 
-    // 1. Ekstrak data dan metadata pagination dari JSON baru
+    // Ekstrak karyawan yang merupakan Tim Finance (Asumsi role_id == 2 atau slug == 'finance-staff')
+    financeUsers.value = employees.filter(emp => {
+      const role = emp.role || {}
+      return emp.role_id === 2 || role.id_role === 2 || role.slug === 'finance-staff'
+    })
+
+    // --- DATA REIMBURSEMENT ---
     const reimbPayload = reimbRes.status === 'fulfilled' ? reimbRes.value.data : null
-    const reimbursements = reimbPayload?.data?.data || reimbPayload?.data || [] // Mengambil array dari "data"
-    const meta = reimbPayload?.data?.meta || reimbPayload?.meta || {}
+    const reimbursements = reimbPayload?.data || [] // response api: data: [...] 
 
-    // Set data pagination
-    pagination.value = {
-      currentPage: meta.current_page || 1,
-      lastPage: meta.last_page || 1,
-      total: meta.total || 0
-    }
-
-    // 2. Filter Status
     const pending = reimbursements.filter(r => {
-      const status = r.last_status || r.status || 'PENDING'
+      // API terbaru meletakkan status di latest_approval
+      const status = r.latest_approval?.status || 'PENDING'
       return status.toLowerCase() === 'pending' || status.toLowerCase() === 'menunggu'
     })
 
@@ -144,13 +159,9 @@ onMounted(async () => {
       populateDonutData(reimbursements)
     }
 
-    const empMap = employees.reduce((acc, curr) => { acc[curr.id_employees] = curr; return acc }, {})
-
-    // 3. Mapping data waiting list
+    // Mapping data reimbursement dari API format terbaru
     pendingReimbursements.value = pending.map(item => {
-      const emp = empMap[item.employees_id] || {}
       let parseableDate = item.expense_date;
-
       if (typeof parseableDate === 'string' && parseableDate.includes(' ') && !parseableDate.includes('T')) {
         parseableDate = parseableDate.replace(' ', 'T') + 'Z';
       }
@@ -158,37 +169,54 @@ onMounted(async () => {
       return {
         id: item.id_request,
         employees_id: item.employees_id,
-        name: emp.name || `Karyawan ID: ${item.employees_id}`,
-        category: categoryMap[item.category_id] || `Kategori ${item.category_id}`,
+        name: item.employees_name || `ID: ${item.employees_id}`, // Gunakan name bawaan dari API
+        category: item.category_name || `Kategori ${item.category_id}`, // Gunakan category bawaan dari API
         date: new Date(parseableDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
         amount: `-${formatRupiah(item.amount)}`
       }
     })
 
-    // Set client-side pagination for the dashboard widget
-    pagination.value = {
-      currentPage: 1,
-      lastPage: Math.ceil(pendingReimbursements.value.length / 5) || 1,
-      total: pendingReimbursements.value.length
-    }
-    
-    updateWaitingList()
+    // ----------------------------------------------------------------
+    // PROCESS LOGS: Menggabungkan Log Approval & Log Company Deposit
+    // ----------------------------------------------------------------
+    let combinedLogs = []
 
-    // Log data unavailable (API not implemented), using dummy data
-    logs.value = [
-      { id: 1, time: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Login berhasil', target: 'System', color: '#3b82f6', category: 'System' },
-      { id: 2, time: new Date(Date.now() - 15 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Menyetujui reimbursement #RM-8123', target: 'Reimbursement', color: '#10b981', category: 'Reimbursement' },
-      { id: 3, time: new Date(Date.now() - 45 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Menambahkan karyawan baru', target: 'Karyawan', color: '#f59e0b', category: 'Karyawan' },
-      { id: 4, time: new Date(Date.now() - 120 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Menolak reimbursement #RM-8122', target: 'Reimbursement', color: '#ef4444', category: 'Reimbursement' },
-      { id: 5, time: new Date(Date.now() - 200 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Update profil sistem', target: 'System', color: '#3b82f6', category: 'System' },
-      { id: 6, time: new Date(Date.now() - 360 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Top up deposit kas Rp 10.000.000', target: 'Keuangan', color: '#10b981', category: 'Keuangan' },
-      { id: 7, time: new Date(Date.now() - 480 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Menghapus karyawan (Resign)', target: 'Karyawan', color: '#f59e0b', category: 'Karyawan' },
-      { id: 8, time: new Date(Date.now() - 1440 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Login dari IP 192.168.1.5', target: 'System', color: '#3b82f6', category: 'System' },
-      { id: 9, time: new Date(Date.now() - 2880 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Menyetujui reimbursement #RM-8001', target: 'Reimbursement', color: '#10b981', category: 'Reimbursement' },
-      { id: 10, time: new Date(Date.now() - 3000 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Edit kategori reimbursement', target: 'Master Data', color: '#8b5cf6', category: 'System' },
-      { id: 11, time: new Date(Date.now() - 4320 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Pencairan dana ke bank BCA', target: 'Keuangan', color: '#10b981', category: 'Keuangan' },
-      { id: 12, time: new Date(Date.now() - 5000 * 60000).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), text: 'Update data karyawan ID 24', target: 'Karyawan', color: '#f59e0b', category: 'Karyawan' }
-    ]
+    if (logAppRes.status === 'fulfilled') {
+      const appData = logAppRes.value.data?.data || []
+      appData.forEach(item => {
+        combinedLogs.push({
+          id: `app_${item.id_log}`, 
+          timestamp: new Date(item.created_at).getTime(),
+          time: new Date(item.created_at).toLocaleDateString('id-ID', { 
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+          }),
+          text: item.comments,
+          target: `(Approval ID #${item.approval_id})`,
+          color: '#3b82f6', 
+          category: 'Approval'
+        })
+      })
+    }
+
+    if (logDepRes.status === 'fulfilled') {
+      const depData = logDepRes.value.data?.data || []
+      depData.forEach(item => {
+        combinedLogs.push({
+          id: `dep_${item.id_log_company_deposit}`, 
+          timestamp: new Date(item.created_at).getTime(),
+          time: new Date(item.created_at).toLocaleDateString('id-ID', { 
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+          }),
+          text: item.comments,
+          target: `(Deposit ID #${item.deposit_id})`,
+          color: '#10b981', 
+          category: 'Deposit'
+        })
+      })
+    }
+
+    combinedLogs.sort((a, b) => b.timestamp - a.timestamp)
+    logs.value = combinedLogs
 
   } catch (err) {
     console.error('Failed to load dashboard data', err)
@@ -197,45 +225,53 @@ onMounted(async () => {
   }
 })
 
-// Modal State & Functions (Tidak ada perubahan)
+// === MODAL STATE & FUNCTIONS ===
 const showNotifModal = ref(false)
 const selectedUser = ref('')
-const selectedReceiverId = ref(null)
+const selectedReceiverId = ref('')
 const message = ref('')
 const messageTitle = ref('Pesan Sistem')
 
 function openNotif(item) {
   selectedUser.value = item.name
-  selectedReceiverId.value = item.employees_id || 1
-  message.value = `Pemberitahuan: Mohon segera proses pengajuan reimbursement dari ${item.name}. Terima kasih.`
+  // Set default penerima ke user finance pertama jika tersedia
+  selectedReceiverId.value = financeUsers.value.length > 0 ? financeUsers.value[0].id_employees : ''
+  message.value = `Pemberitahuan: Mohon segera proses pengajuan reimbursement dari ${item.name} (${item.category}). Terima kasih.`
   showNotifModal.value = true
 }
 
 async function sendNotif() {
+  if (!selectedReceiverId.value) {
+    Swal.fire({ icon: 'warning', title: 'Pilih Penerima', text: 'Silakan pilih user Finance terlebih dahulu.' })
+    return
+  }
+
+  if (!messageTitle.value || !message.value) {
+    Swal.fire({ icon: 'warning', title: 'Data Tidak Lengkap', text: 'Judul dan Pesan wajib diisi.' })
+    return
+  }
+
   try {
-    await ApiService.saveReimbursementMessage({ 
-      receiver_id: selectedReceiverId.value,
-      message_content: message.value,
-      title: messageTitle.value
-    })
+    // 1. Membungkus payload menggunakan FormData
+    const notifFormData = new FormData()
+    notifFormData.append('receiver_id', selectedReceiverId.value)
+    notifFormData.append('title', messageTitle.value)
+    notifFormData.append('message_content', message.value)
+
+    // 2. Mengirim FormData ke API
+    await ApiService.saveReimbursementMessage(notifFormData)
+    
     Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Notifikasi berhasil dikirim', showConfirmButton: false, timer: 1500 })
     showNotifModal.value = false
-
-    const logRes = await ApiService.getSystemLogs()
-    const logsData = logRes.data?.data || []
-    logs.value = logsData.slice(0, 3).map((l, i) => ({
-      id: l.id_log || l.id || i,
-      time: new Date(l.created_at || l.time).toLocaleString('id-ID'),
-      text: l.comments || l.text || l.action,
-      target: l.source || '',
-      color: l.source === 'Deposit' ? '#10b981' : '#3b82f6'
-    }))
+    
+    // (Opsional) Kosongkan form setelah berhasil kirim
+    message.value = '' 
+    messageTitle.value = 'Pesan Sistem'
   } catch (err) {
     Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal mengirim notifikasi' })
     console.error(err)
   }
 }
-
 const logFilter = ref('Semua')
 
 const filteredLogs = computed(() => {
@@ -243,10 +279,9 @@ const filteredLogs = computed(() => {
   return logs.value.filter(log => log.category === logFilter.value)
 })
 </script>
+
 <template>
   <div class="admin-dashboard">
-    
-
     <div class="dashboard-grid">
       <!-- Left Column -->
       <div class="left-column">
@@ -285,10 +320,8 @@ const filteredLogs = computed(() => {
             <span>Log Aktivitas Sistem</span>
             <select v-model="logFilter" class="log-filter-select">
               <option value="Semua">Semua</option>
-              <option value="System">Sistem</option>
-              <option value="Reimbursement">Reimburse</option>
-              <option value="Karyawan">Karyawan</option>
-              <option value="Keuangan">Keuangan</option>
+              <option value="Approval">Approval</option>
+              <option value="Deposit">Deposit</option>
             </select>
           </div>
           <div class="log-list">
@@ -308,10 +341,17 @@ const filteredLogs = computed(() => {
 
       <!-- Right Column -->
       <div class="right-column">
-          <div class="card-header">
-            <span>Menunggu Persetujuan</span>
-            <span class="header-badge">{{ stats[1].value }}</span>
+          <!-- Header dgn Filter -->
+          <div class="card-header" style="justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>Menunggu Persetujuan</span>
+              <span class="header-badge">{{ filteredPendingList.length }}</span>
+            </div>
+            <select v-model="pendingCategoryFilter" class="log-filter-select">
+              <option v-for="cat in availablePendingCategories" :key="cat" :value="cat">{{ cat }}</option>
+            </select>
           </div>
+          
           <div class="approval-list">
             <div v-if="isLoading"
               style="padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.8rem; font-weight: 500;">
@@ -346,6 +386,8 @@ const filteredLogs = computed(() => {
               </div>
             </template>
           </div>
+          
+          <!-- Paginasi Dinamis -->
           <div class="table-footer" v-if="pagination.lastPage > 1">
             <div class="pagination">
               <button class="page-btn" :disabled="pagination.currentPage === 1" @click="changePage(pagination.currentPage - 1)">
@@ -378,9 +420,20 @@ const filteredLogs = computed(() => {
           </button>
         </div>
         <div class="modal-panel-body">
-          <div class="notif-target">Penerima ID: <strong>{{ selectedReceiverId }}</strong></div>
+          
+          <!-- Dropdown Pemilihan Penerima -->
           <div class="form-group-notif">
-            <label>Judul Pesan</label>
+            <label>Pilih Penerima (Finance) <span style="color:#ef4444">*</span></label>
+            <select v-model="selectedReceiverId" class="form-control" style="margin-bottom: 10px; width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem; background: white;">
+              <option value="" disabled>-- Pilih Tim Finance --</option>
+              <option v-for="user in financeUsers" :key="user.id_employees" :value="user.id_employees">
+                {{ user.name }} ({{ user.role?.role_name || 'Finance Staff' }})
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group-notif">
+            <label>Judul Pesan <span style="color:#ef4444">*</span></label>
             <input type="text" v-model="messageTitle" class="form-control" style="margin-bottom: 10px; width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem;" />
           </div>
           <div class="form-group-notif">
@@ -400,6 +453,7 @@ const filteredLogs = computed(() => {
 </template>
 
 <style scoped>
+/* CSS Sama seperti sebelumnya */
 .admin-dashboard {
   display: flex;
   flex-direction: column;
@@ -493,12 +547,6 @@ const filteredLogs = computed(() => {
   justify-content: center;
 }
 
-.donut-svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
 .chart-legend {
   display: flex;
   flex-direction: column;
@@ -569,15 +617,6 @@ const filteredLogs = computed(() => {
 .log-bold {
   font-weight: 700;
   color: #1e293b;
-}
-
-.btn-link {
-  color: #3b82f6;
-  font-size: 0.7rem;
-  font-weight: 700;
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 .log-filter-select {
