@@ -1,50 +1,122 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Zap, BarChart3, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-vue-next'
+import { Zap, BarChart3, ShieldCheck, ArrowRight, Eye, EyeOff, RefreshCw } from 'lucide-vue-next'
 import AuthService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
+import { Vue3Lottie } from 'vue3-lottie' // Pastikan ini di-import jika Anda menggunakan komponen Lottie
+
 const router = useRouter()
 const isLoading = ref(false)
 const authStore = useAuthStore()
+
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(false)
 const errorMsg = ref('')
 
-// Check local storage for remembered email
+// === CAPTCHA STATE ===
+const captchaCanvas = ref(null)
+const captchaCode = ref('')
+const captchaInput = ref('')
+
+// Cek local storage untuk 'Remember Me'
 if (localStorage.getItem('rememberedEmail')) {
   email.value = localStorage.getItem('rememberedEmail')
   rememberMe.value = true
 }
 
+// === FUNGSI GENERATE CAPTCHA (CANVAS) ===
+function generateCaptcha() {
+  if (!captchaCanvas.value) return
+  
+  const ctx = captchaCanvas.value.getContext('2d')
+  const width = captchaCanvas.value.width
+  const height = captchaCanvas.value.height
+
+  // Bersihkan canvas
+  ctx.clearRect(0, 0, width, height)
+  
+  // Background color
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, width, height)
+
+  // Karakter acak (tanpa O, 0, I, l agar tidak membingungkan user)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let code = ''
+  for (let i = 0; i < 5; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  captchaCode.value = code
+
+  // Tambahkan Noise (Garis acak agar sulit dibaca bot OCR)
+  for (let i = 0; i < 6; i++) {
+    ctx.strokeStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.5)`
+    ctx.beginPath()
+    ctx.moveTo(Math.random() * width, Math.random() * height)
+    ctx.lineTo(Math.random() * width, Math.random() * height)
+    ctx.stroke()
+  }
+
+  // Draw Text dengan rotasi dan posisi acak
+  ctx.font = 'bold 24px Arial'
+  ctx.textBaseline = 'middle'
+  for (let i = 0; i < code.length; i++) {
+    const x = 20 + (i * 20)
+    const y = height / 2 + (Math.random() * 10 - 5)
+    const angle = Math.random() * 0.4 - 0.2 // Rotasi miring
+    
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(angle)
+    ctx.fillStyle = '#1e293b'
+    ctx.fillText(code[i], 0, 0)
+    ctx.restore()
+  }
+  
+  // Kosongkan input setiap kali captcha di-refresh
+  captchaInput.value = ''
+}
+
+// Generate captcha saat komponen dimuat
+onMounted(() => {
+  generateCaptcha()
+})
+
 async function handleLogin() {
   errorMsg.value = ''
+  
+  // 1. Validasi CAPTCHA (Case Insensitive)
+  if (captchaInput.value.toLowerCase() !== captchaCode.value.toLowerCase()) {
+    errorMsg.value = 'Kode Keamanan tidak sesuai, silakan coba lagi.'
+    generateCaptcha() // Refresh captcha jika salah
+    return
+  }
+
   isLoading.value = true
 
   try {
-    // Pemanggilan API kini sangat bersih
     const res = await AuthService.login({
       email: email.value,
       password: password.value,
     })
 
-    // 1. Simpan Token
+    // Simpan Token
     authStore.setAuthData(res.data)
 
-    // 2. Remember Me logic
+    // Remember Me logic
     if (rememberMe.value) {
       localStorage.setItem('rememberedEmail', email.value.trim())
     } else {
       localStorage.removeItem('rememberedEmail')
     }
 
-    // 3. Redirect berdasarkan role
+    // Redirect berdasarkan role
     const roleSlug = res.data.role.slug
     if (roleSlug === 'admin') {
       router.push('/admin/dasbor')
-    } else if (roleSlug === 'finance-staff') { // <--- Tambahkan else di sini
+    } else if (roleSlug === 'finance-staff') {
       router.push('/finance/dasbor')
     } else {
       router.push('/staf/dasbor')
@@ -52,6 +124,7 @@ async function handleLogin() {
 
   } catch (err) {
     errorMsg.value = err.response?.data?.message || 'Email atau password salah.'
+    generateCaptcha() // Refresh captcha jika login gagal
   } finally {
     isLoading.value = false
   }
@@ -71,31 +144,25 @@ async function handleLogin() {
 
         <div class="features">
           <div class="feature-item">
-            <div class="feature-icon">
-              <Zap :size="18" />
-            </div>
+            <div class="feature-icon"><Zap :size="18" /></div>
             <span>Proses Cepat & Mudah</span>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">
-              <BarChart3 :size="18" />
-            </div>
+            <div class="feature-icon"><BarChart3 :size="18" /></div>
             <span>Pantau Status Real-time</span>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">
-              <ShieldCheck :size="18" />
-            </div>
+            <div class="feature-icon"><ShieldCheck :size="18" /></div>
             <span>Aman & Terpercaya</span>
           </div>
         </div>
 
         <div class="lottie-container" style="margin-top: 2.5rem; display: flex; justify-content: center; opacity: 0.9;">
-           <Vue3Lottie 
-             animationLink="https://assets3.lottiefiles.com/packages/lf20_jcikwtux.json" 
-             :height="280" 
-             :width="280" 
-           />
+          <Vue3Lottie 
+            animationLink="https://assets3.lottiefiles.com/packages/lf20_jcikwtux.json" 
+            :height="280" 
+            :width="280" 
+          />
         </div>
       </div>
       <div class="abstract-shape"></div>
@@ -107,23 +174,43 @@ async function handleLogin() {
           <h2>Selamat Datang!</h2>
           <p>Masuk ke portal ReimburseKu</p>
         </div>
+        
         <form @submit.prevent="handleLogin">
           <div class="form-group">
             <label class="form-label" for="email">Email</label>
-            <input id="email" v-model="email" type="email" class="form-control" placeholder="nama@email.com" 
-              required autocomplete="email" autofocus @blur="email = email.trim()" />
+            <input id="email" v-model="email" type="email" class="form-control" placeholder="nama@email.com" required autocomplete="email" autofocus @blur="email = email.trim()" />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="password">Password</label>
             <div class="input-wrap">
-              <input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" class="form-control"
-                placeholder="••••••••" required autocomplete="current-password" />
-              <button type="button" class="eye-btn" @click="showPassword = !showPassword"
-                :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
+              <input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" class="form-control" placeholder="••••••••" required autocomplete="current-password" />
+              <button type="button" class="eye-btn" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'">
                 <EyeOff v-if="showPassword" :size="16" aria-hidden="true" />
                 <Eye v-else :size="16" aria-hidden="true" />
               </button>
+            </div>
+          </div>
+
+          <!-- === INPUT CAPTCHA === -->
+          <div class="form-group">
+            <label class="form-label">Kode Keamanan</label>
+            <div class="captcha-wrapper">
+              <div class="captcha-box">
+                <canvas ref="captchaCanvas" width="130" height="42" class="captcha-canvas" @click="generateCaptcha" title="Klik untuk memuat ulang"></canvas>
+                <button type="button" class="btn-refresh" @click="generateCaptcha" title="Muat ulang kode">
+                  <RefreshCw :size="16" />
+                </button>
+              </div>
+              <input 
+                v-model="captchaInput" 
+                type="text" 
+                class="form-control captcha-input" 
+                placeholder="Ketik kode" 
+                required 
+                maxlength="5"
+                autocomplete="off"
+              />
             </div>
           </div>
 
@@ -137,17 +224,10 @@ async function handleLogin() {
           <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
           <button type="submit" class="btn btn-primary login-btn" :disabled="isLoading">
-            <span v-if="!isLoading">Masuk
-              <ArrowRight :size="16" />
-            </span>
+            <span v-if="!isLoading">Masuk <ArrowRight :size="16" /></span>
             <span v-else class="loader"></span>
           </button>
         </form>
-        <!-- <button @click="handleLogin" class="btn btn-primary login-btn" :disabled="isLoading">
-          <span v-if="!isLoading">Masuk ke Dashboard</span>
-          <span v-else class="loader"></span>
-          <ArrowRight v-if="!isLoading" :size="18" />
-        </button> -->
       </div>
     </div>
   </div>
@@ -269,7 +349,6 @@ async function handleLogin() {
   background: white;
   padding: 3rem;
   border-radius: 1.5rem;
-  /* Dihapus shadow agar menyatu dengan background putih */
 }
 
 .login-header {
@@ -286,6 +365,34 @@ async function handleLogin() {
 
 .login-header p {
   color: var(--color-text-muted);
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-main);
+}
+
+.form-control {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .input-wrap {
@@ -341,11 +448,90 @@ async function handleLogin() {
   color: var(--color-text-main);
 }
 
+/* === CAPTCHA STYLES === */
+.captcha-wrapper {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.captcha-box {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.captcha-canvas {
+  height: 42px;
+  width: 130px;
+  cursor: pointer;
+}
+
+.btn-refresh {
+  background: transparent;
+  border: none;
+  border-left: 1px solid #cbd5e1;
+  height: 42px;
+  padding: 0 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-refresh:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.captcha-input {
+  flex: 1;
+  text-transform: uppercase; 
+  letter-spacing: 2px;
+  height: 42px; /* Disesuaikan dengan tinggi form-control secara spesifik */
+}
+
+.error-msg {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  background-color: #fef2f2;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
 .login-btn {
   width: 100%;
   height: 3rem;
   font-size: 1rem;
   margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s;
+}
+
+.login-btn:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .loader {
@@ -356,6 +542,10 @@ async function handleLogin() {
   border-top-color: white;
   animation: spin 1s ease-in-out infinite;
   display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 1024px) {
