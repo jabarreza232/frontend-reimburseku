@@ -127,7 +127,7 @@ const saveProfile = async () => {
       title: 'Perhatian',
       html: `Mohon perbaiki data berikut:<br><br>- ` + errorMessages.join('<br>- ')
     })
-    return // Hentikan fungsi di sini, jangan lanjut ke API
+    return 
   }
 
   isSaving.value = true
@@ -177,7 +177,10 @@ const saveProfile = async () => {
 </script>
 
 <template>
-  <div class="profile-page">    <div class="profile-layout">
+  <div class="profile-page">    
+    <div class="profile-layout">
+      
+      <!-- Form Kiri -->
       <div class="form-card card">
         <div class="section-title-wrap">
           <button class="back-btn-inline" @click="router.push('/staf/dasbor')" title="Kembali">
@@ -193,7 +196,7 @@ const saveProfile = async () => {
           <h3 class="section-title">Informasi Akun</h3>
         </div>
 
-        <div class="form-grid" style="margin-bottom: 1rem;">
+        <div class="form-grid mb-4">
           <div class="form-group">
             <label class="form-label">Nama</label>
             <input v-model="user.nama" type="text" class="form-control" maxlength="255" />
@@ -245,7 +248,7 @@ const saveProfile = async () => {
           <h3 class="section-title">Informasi Penarikan Dana</h3>
         </div>
 
-        <div class="form-grid" style="margin-bottom: 1rem;">
+        <div class="form-grid mb-4">
           <div class="form-group">
             <label class="form-label">Metode Pembayaran</label>
 
@@ -287,7 +290,7 @@ const saveProfile = async () => {
         </div>
 
         <div class="form-actions">
-          <button class="btn btn-primary" @click="saveProfile" :disabled="isSaving">
+          <button class="btn btn-primary submit-btn" @click="saveProfile" :disabled="isSaving">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -299,11 +302,14 @@ const saveProfile = async () => {
         </div>
       </div>
 
+      <!-- Preview Kanan -->
       <div class="preview-card card">
         <h3 class="preview-title">Preview Profile</h3>
         <div class="preview-content">
           <div class="preview-avatar">
-            <img src="https://i.pravatar.cc/150?img=32" alt="Avatar" />
+            <!-- Bisa diganti logo/inisial pengguna -->
+            <img src="https://ui-avatars.com/api/?name=User&background=eff6ff&color=3b82f6" alt="Avatar" v-if="!user.nama" />
+            <img :src="'https://ui-avatars.com/api/?name=' + user.nama + '&background=eff6ff&color=3b82f6'" alt="Avatar" v-else />
           </div>
           <h4 class="preview-name">{{ user.nama || '-' }}</h4>
           <span class="badge badge-success">Aktif</span>
@@ -343,20 +349,37 @@ const saveProfile = async () => {
               </span>
             </div>
           </div>
-
         </div>
       </div>
+      
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Base Setup */
 .profile-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px - 3rem);
+  height: calc(100vh - 64px - 3rem); /* Asumsi ada navbar 64px & padding */
   overflow: hidden;
 }
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Utilities */
+.mb-4 { margin-bottom: 1rem; }
+.mt-4 { margin-top: 1rem; }
+
+/* Buttons & Icons */
 .back-btn-inline {
   width: 36px;
   height: 36px;
@@ -378,33 +401,9 @@ const saveProfile = async () => {
   border-color: #cbd5e1;
 }
 
-.page-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-main);
-  margin: 0;
-  line-height: 1.2;
-}
-
-.text-muted {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin: 0;
-  margin-top: 0.25rem;
-}
-
-.profile-layout {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
+/* Cards */
 .form-card {
-  padding: 1rem 1.5rem;
+  padding: 1.5rem;
 }
 
 .preview-card {
@@ -412,30 +411,34 @@ const saveProfile = async () => {
   height: fit-content;
 }
 
+/* Typography & Sections */
 .section-title-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .section-icon {
   color: var(--color-primary);
+  display: flex;
+  align-items: center;
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-text-main);
+  margin: 0;
 }
 
+/* Grid & Layouting */
 .form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
-/* Kunci utama agar Textarea Alamat melebar penuh ke kanan */
 .col-span-2 {
   grid-column: span 2;
 }
@@ -443,15 +446,20 @@ const saveProfile = async () => {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+}
+.submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Preview Card */
+/* Preview Card Specifics */
 .preview-title {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   text-align: center;
-  margin-bottom: 1rem;
+  margin: 0 0 1.25rem 0;
 }
 
 .preview-content {
@@ -466,18 +474,33 @@ const saveProfile = async () => {
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 1rem;
+  border: 2px solid #e2e8f0;
 }
 
 .preview-name {
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  margin: 0 0 0.5rem 0;
+  color: #1e293b;
+}
+
+.badge-success {
+  background-color: #dcfce3;
+  color: #16a34a;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .preview-details {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
+  background-color: #f8fafc;
+  padding: 1rem;
+  border-radius: 12px;
 }
 
 .preview-item {
@@ -494,21 +517,66 @@ const saveProfile = async () => {
 .preview-val {
   font-size: 0.875rem;
   font-weight: 500;
+  color: #0f172a;
 }
 
-/* Memastikan teks alamat panjang di-wrap dengan rapi di kartu preview */
 .alamat-preview-text {
   word-break: break-word;
   white-space: pre-line;
 }
 
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
 @media (max-width: 900px) {
+  /* Tumpuk layout grid kanan (Preview) ke bawah pada tablet */
   .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 1. Bebaskan height agar halaman bisa di-scroll secara natural dari body */
+  .profile-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .profile-layout {
+    overflow-y: visible;
+    gap: 1rem;
+  }
+
+  /* 2. Jadikan Form Grid 1 kolom sepenuhnya menyusun ke bawah */
+  .form-grid {
     grid-template-columns: 1fr;
   }
 
   .col-span-2 {
     grid-column: span 1;
+  }
+
+  /* 3. Sesuaikan Card Padding */
+  .form-card,
+  .preview-card {
+    padding: 1.25rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  /* 4. Buat Tombol Submit Lebar Penuh (Full-Width) */
+  .form-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .submit-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
   }
 }
 </style>

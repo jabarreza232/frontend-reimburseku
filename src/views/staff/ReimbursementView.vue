@@ -69,12 +69,12 @@ const getBorderColor = (category) => {
   <div class="reimbursement-list">
     <div class="page-header">
       <div>
-        
+        <h2 class="page-title">Reimbursement</h2>
         <p class="text-muted mt-1">Kelola semua pengajuan reimbursement Anda</p>
       </div>
-      <router-link to="/staf/reimbursement/tambah" class="btn btn-primary">
+      <router-link to="/staf/reimbursement/tambah" class="btn btn-primary btn-add">
         <Plus :size="18" />
-        Pengajuan Baru
+        <span class="btn-text">Pengajuan Baru</span>
       </router-link>
     </div>
 
@@ -87,9 +87,9 @@ const getBorderColor = (category) => {
       <div class="filter-actions">
         <button class="btn btn-outline">
           <Filter :size="18" />
-          Filter
+          <span>Filter</span>
         </button>
-        <select class="form-control" style="width: auto;">
+        <select class="form-control filter-select">
           <option>Semua Status</option>
           <option>Menunggu</option>
           <option>Disetujui</option>
@@ -144,6 +144,7 @@ const getBorderColor = (category) => {
 </template>
 
 <style scoped>
+/* Layout Dasar */
 .reimbursement-list {
   display: flex;
   flex-direction: column;
@@ -151,6 +152,33 @@ const getBorderColor = (category) => {
   overflow: hidden;
 }
 
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-main, #1e293b);
+  margin: 0;
+}
+
+.text-muted {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.btn-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Toolbar (Search & Filter) */
 .toolbar {
   padding: 0 0 1.5rem 0;
   display: flex;
@@ -160,9 +188,25 @@ const getBorderColor = (category) => {
   flex-wrap: wrap;
 }
 
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
 .search-box .form-control {
   padding-left: 2.75rem;
   border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-actions {
@@ -172,13 +216,17 @@ const getBorderColor = (category) => {
 
 .filter-actions .btn-outline {
   border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.filter-actions .form-control {
+.filter-select {
   border-radius: 8px;
+  width: auto;
 }
 
-/* Cards layout */
+/* List Kartu */
 .reimbursement-cards {
   display: flex;
   flex-direction: column;
@@ -187,6 +235,18 @@ const getBorderColor = (category) => {
   flex: 1;
   padding: 0.25rem;
   margin: -0.25rem;
+}
+
+/* Mengubah scrollbar agar lebih rapi */
+.reimbursement-cards::-webkit-scrollbar {
+  width: 6px;
+}
+.reimbursement-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+.reimbursement-cards::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 
 .reimbursement-card {
@@ -232,9 +292,23 @@ const getBorderColor = (category) => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap; /* Mencegah badge bertumpuk jika layar sempit */
 }
 
-
+/* Status Pill CSS (Asumsi format utilitas) */
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-pill.menunggu { background-color: #fef3c7; color: #d97706; }
+.status-pill.diterima { background-color: #dbeafe; color: #2563eb; }
+.status-pill.dibayar { background-color: #dcfce3; color: #16a34a; }
+.status-pill.ditolak { background-color: #fee2e2; color: #dc2626; }
 
 .status-reason {
   font-size: 0.8rem;
@@ -267,11 +341,110 @@ const getBorderColor = (category) => {
   gap: 0.5rem;
 }
 
+.page-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.page-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
 .page-arrow {
   color: #9CA3AF;
 }
-
 .page-arrow:hover {
   color: #111827;
+}
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 768px) {
+  /* 1. Bebaskan height agar halaman bisa di-scroll natural secara vertikal */
+  .reimbursement-list {
+    height: auto;
+    overflow: visible;
+  }
+
+  .reimbursement-cards {
+    overflow-y: visible;
+    max-height: none;
+  }
+
+  /* 2. Header & Tombol Add */
+  .page-header {
+    align-items: flex-start;
+  }
+
+  /* Ubah tombol tambah jadi bulat dengan icon saja di HP */
+  .btn-add {
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+  }
+  
+  .btn-text {
+    display: none;
+  }
+
+  /* 3. Toolbar bersusun ke bawah */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .filter-actions {
+    width: 100%;
+    justify-content: space-between; /* Sejajarkan filter & select */
+  }
+
+  .filter-actions .btn-outline {
+    flex: 1;
+    justify-content: center;
+  }
+  
+  .filter-select {
+    flex: 1;
+  }
+
+  /* 4. Penataan Ulang Card Content */
+  .card-content {
+    flex-direction: column;
+    align-items: flex-start; /* Semua rata kiri */
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  
+  .card-info {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .date {
+    align-self: flex-start; /* Tanggal pindah ke bawah kiri */
+    margin-top: 0.25rem;
+  }
 }
 </style>

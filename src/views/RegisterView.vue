@@ -37,7 +37,7 @@ const form = ref({
   position: '',
   provider_id: '',
   account_number: '',
-  role_id:1,
+  role_id: 1,
   account_holder_name: ''
 })
 
@@ -137,6 +137,7 @@ async function handleRegister() {
   }
 }
 </script>
+
 <template>
   <div class="login-container">
     <div class="login-left">
@@ -294,16 +295,17 @@ async function handleRegister() {
 </template>
 
 <style scoped>
-/* Mewarisi CSS dari Login, ditambah spesifik untuk Register */
+/* BASE LAYOUT */
 .login-container {
   display: flex;
   min-height: 100vh;
   background-color: white;
 }
 
+/* SISI KIRI (HERO BANNER) */
 .login-left {
   flex: 1.2;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1e3a8a 100%);
+  background: linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, #1e3a8a 100%);
   color: white;
   padding: 3rem;
   display: flex;
@@ -312,33 +314,36 @@ async function handleRegister() {
   overflow: hidden;
 }
 
-/* ... Class brand, logo, hero-content, features sama persis dengan halaman login ... */
 .brand { display: flex; align-items: center; gap: 1rem; position: relative; z-index: 2; }
-.logo { width: 48px; height: 48px; background: white; color: var(--color-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5rem; }
+.logo { width: 48px; height: 48px; background: white; color: var(--color-primary, #3b82f6); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5rem; }
 .brand h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.5px; }
+
 .hero-content { margin-top: auto; margin-bottom: auto; max-width: 480px; z-index: 2; }
 .hero-content h2 { font-size: 2.5rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; }
 .hero-content p { font-size: 1.1rem; color: rgba(255, 255, 255, 0.8); margin-bottom: 2.5rem; line-height: 1.6; }
+
 .features { display: flex; flex-direction: column; gap: 1.25rem; }
 .feature-item { display: flex; align-items: center; gap: 1rem; font-size: 1.1rem; font-weight: 500; }
 .feature-icon { width: 32px; height: 32px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
 .abstract-shape { position: absolute; bottom: -10%; right: -10%; width: 500px; height: 500px; border-radius: 50%; background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%); z-index: 1; }
 
-/* Modifikasi pada bagian kanan agar mendukung scroll */
+/* SISI KANAN (FORM) */
 .login-right {
-  flex: 1.5; /* Diperbesar sedikit karena form lebih lebar */
+  flex: 1.5;
   display: flex;
-  align-items: flex-start; /* Ubah ke flex-start agar bisa discroll dari atas */
+  align-items: flex-start;
   justify-content: center;
   padding: 2rem;
   background-color: white;
-  overflow-y: auto; /* Memungkinkan scrolling */
+  overflow-y: auto;
   max-height: 100vh;
+  -webkit-overflow-scrolling: touch; /* Smooth scroll di iOS */
 }
 
 .login-card {
   width: 100%;
-  max-width: 600px; /* Diperbesar untuk menampung grid 2 kolom */
+  max-width: 600px;
   background: white;
   padding: 2rem 1rem;
   margin-top: 1rem;
@@ -351,9 +356,9 @@ async function handleRegister() {
 }
 
 .login-header h2 { font-size: 1.875rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
-.login-header p { color: #64748b; }
+.login-header p { color: #64748b; font-size: 0.95rem; }
 
-/* Grid layout untuk form */
+/* GRID FORM */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -377,6 +382,7 @@ async function handleRegister() {
   border-bottom: 1px solid #e2e8f0;
 }
 
+/* INPUTS */
 .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
 .form-label { font-size: 0.875rem; font-weight: 600; color: #475569; }
 
@@ -387,20 +393,27 @@ async function handleRegister() {
   font-size: 0.875rem;
   transition: all 0.2s;
   background: #f8fafc;
+  color: #1e293b;
+  width: 100%;
+  box-sizing: border-box;
 }
 .form-control:focus { outline: none; border-color: #3b82f6; background: white; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-textarea.form-control { resize: vertical; }
+textarea.form-control { resize: vertical; min-height: 80px; }
 
 .input-wrap { position: relative; width: 100%; display: flex; }
-.input-wrap .form-control { width: 100%; padding-right: 2.75rem; }
+.input-wrap .form-control { padding-right: 2.75rem; }
 .eye-btn { position: absolute; top: 50%; transform: translateY(-50%); right: 0.75rem; background: transparent; border: none; cursor: pointer; color: #94a3b8; display: flex; align-items: center; justify-content: center; padding: 0; }
 .eye-btn:hover { color: #333; }
 
 .text-red-500 { color: #ef4444; }
 .error-msg { color: #ef4444; font-size: 0.875rem; font-weight: 500; background: #fef2f2; padding: 0.75rem; border-radius: 8px; border: 1px solid #fecaca; }
 
-.login-btn { width: 100%; height: 3rem; font-size: 1rem; margin-top: 1.5rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+/* TOMBOL DAFTAR */
+.btn-primary { background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
+.btn-primary:hover { background-color: #2563eb; }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
+.login-btn { width: 100%; height: 3rem; font-size: 1rem; margin-top: 1.5rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .loader { width: 20px; height: 20px; border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top-color: white; animation: spin 1s ease-in-out infinite; display: inline-block; }
 
 .register-link { text-align: center; margin-top: 1.5rem; font-size: 0.875rem; color: #64748b; }
@@ -409,10 +422,47 @@ textarea.form-control { resize: vertical; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
 @media (max-width: 1024px) {
   .login-left { display: none; }
-  .login-right { flex: 1; align-items: center; }
-  .form-grid { grid-template-columns: 1fr; }
-  .full-width { grid-column: span 1; }
+  .login-right { flex: 1; padding: 2rem 1.5rem; }
+}
+
+@media (max-width: 768px) {
+  .login-right {
+    padding: 1.5rem 1rem;
+  }
+
+  .login-card {
+    padding: 1.5rem 1rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+
+  .login-header h2 { font-size: 1.5rem; }
+  
+  /* Form disusun ke bawah menjadi 1 kolom */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .full-width {
+    grid-column: span 1;
+  }
+
+  /* Perbesar area sentuh (tap target) untuk HP */
+  .form-control {
+    padding: 0.875rem 1rem;
+    font-size: 1rem; /* Mencegah auto-zoom di iOS Safari */
+  }
+
+  .login-btn {
+    height: 3.25rem;
+    font-size: 1.05rem;
+  }
 }
 </style>

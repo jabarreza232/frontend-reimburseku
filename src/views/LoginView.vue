@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Zap, BarChart3, ShieldCheck, ArrowRight, Eye, EyeOff, RefreshCw } from 'lucide-vue-next'
 import AuthService from '@/api/ApiService'
 import { useAuthStore } from '@/stores/auth'
-import { Vue3Lottie } from 'vue3-lottie' // Pastikan ini di-import jika Anda menggunakan komponen Lottie
+import { Vue3Lottie } from 'vue3-lottie'
 
 const router = useRouter()
 const isLoading = ref(false)
@@ -133,6 +133,7 @@ async function handleLogin() {
 
 <template>
   <div class="login-container">
+    <!-- Bagian Kiri (Hanya Tampil di Desktop/Tablet Besar) -->
     <div class="login-left">
       <div class="brand">
         <div class="logo">RK</div>
@@ -168,8 +169,16 @@ async function handleLogin() {
       <div class="abstract-shape"></div>
     </div>
 
+    <!-- Bagian Kanan (Form Login) -->
     <div class="login-right">
       <div class="login-card">
+        
+        <!-- Mobile Branding (Hanya Tampil di Mobile) -->
+        <div class="mobile-brand">
+          <div class="mobile-logo">RK</div>
+          <h1>ReimburseKu</h1>
+        </div>
+
         <div class="login-header">
           <h2>Selamat Datang!</h2>
           <p>Masuk ke portal ReimburseKu</p>
@@ -240,6 +249,7 @@ async function handleLogin() {
   background-color: white;
 }
 
+/* KIRI: Desktop Only */
 .login-left {
   flex: 1.2;
   background: linear-gradient(135deg, var(--color-primary) 0%, #1e3a8a 100%);
@@ -264,7 +274,7 @@ async function handleLogin() {
   height: 48px;
   background: white;
   color: var(--color-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-md, 8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -334,6 +344,7 @@ async function handleLogin() {
   z-index: 1;
 }
 
+/* KANAN: Form Area */
 .login-right {
   flex: 1;
   display: flex;
@@ -351,6 +362,33 @@ async function handleLogin() {
   border-radius: 1.5rem;
 }
 
+/* Mobile Brand (Hidden by default on Desktop) */
+.mobile-brand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+.mobile-logo {
+  width: 40px;
+  height: 40px;
+  background: var(--color-primary, #2563eb);
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+.mobile-brand h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary, #2563eb);
+  margin: 0;
+}
+
 .login-header {
   text-align: center;
   margin-bottom: 2.5rem;
@@ -359,12 +397,12 @@ async function handleLogin() {
 .login-header h2 {
   font-size: 1.875rem;
   font-weight: 700;
-  color: var(--color-text-main);
+  color: var(--color-text-main, #1e293b);
   margin-bottom: 0.5rem;
 }
 
 .login-header p {
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, #64748b);
 }
 
 .form-group {
@@ -376,7 +414,7 @@ async function handleLogin() {
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: var(--color-text-main);
+  color: var(--color-text-main, #1e293b);
 }
 
 .form-control {
@@ -391,7 +429,7 @@ async function handleLogin() {
 }
 
 .form-control:focus {
-  border-color: var(--color-primary);
+  border-color: var(--color-primary, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -414,7 +452,7 @@ async function handleLogin() {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, #64748b);
   cursor: pointer;
   user-select: none;
 }
@@ -424,7 +462,7 @@ async function handleLogin() {
   height: 16px;
   border-radius: 4px;
   border: 1px solid #cbd5e1;
-  accent-color: var(--color-primary);
+  accent-color: var(--color-primary, #2563eb);
   cursor: pointer;
 }
 
@@ -436,7 +474,7 @@ async function handleLogin() {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--color-text-muted);
+  color: var(--color-text-muted, #64748b);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -445,7 +483,7 @@ async function handleLogin() {
 }
 
 .eye-btn:hover {
-  color: var(--color-text-main);
+  color: var(--color-text-main, #1e293b);
 }
 
 /* === CAPTCHA STYLES === */
@@ -493,7 +531,7 @@ async function handleLogin() {
   flex: 1;
   text-transform: uppercase; 
   letter-spacing: 2px;
-  height: 42px; /* Disesuaikan dengan tinggi form-control secara spesifik */
+  height: 42px; 
 }
 
 .error-msg {
@@ -517,7 +555,7 @@ async function handleLogin() {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 8px;
-  background-color: var(--color-primary);
+  background-color: var(--color-primary, #2563eb);
   color: white;
   border: none;
   cursor: pointer;
@@ -548,9 +586,53 @@ async function handleLogin() {
   to { transform: rotate(360deg); }
 }
 
+/* =========================================
+   MOBILE RESPONSIVENESS (MEDIA QUERIES)
+   ========================================= */
+
+/* Tablet & Mobile (Sembunyikan Panel Kiri) */
 @media (max-width: 1024px) {
   .login-left {
     display: none;
+  }
+  
+  .login-right {
+    background-color: #f1f5f9; /* Memberi warna abu agar card login menonjol */
+    padding: 1.5rem;
+  }
+  
+  .login-card {
+    padding: 2.5rem 2rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-brand {
+    display: flex; /* Munculkan logo di HP */
+  }
+}
+
+/* Mobile Kecil (Penyesuaian Padding & Captcha) */
+@media (max-width: 480px) {
+  .login-right {
+    padding: 1rem;
+  }
+  
+  .login-card {
+    padding: 2rem 1.25rem;
+  }
+  
+  .login-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  /* Supaya Captcha tidak terhimpit di layar sangat kecil */
+  .captcha-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .captcha-box {
+    justify-content: center;
   }
 }
 </style>

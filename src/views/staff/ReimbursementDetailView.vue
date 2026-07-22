@@ -10,6 +10,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const isLoading = ref(true)
+
 // State Modal Preview Gambar
 const isModalOpen = ref(false)
 const zoomLevel = ref(1)
@@ -61,11 +62,10 @@ onMounted(async () => {
 
     } catch (err) {
       console.error('Gagal mengambil data detail atau log:', err)
-    }finally {
-      // Tambahkan blok finally ini
+    } finally {
       isLoading.value = false
     }
-  }else{
+  } else {
     isLoading.value = false
   }
 })
@@ -120,6 +120,7 @@ const isDragging = ref(false)
 const startX = ref(0)
 const startY = ref(0)
 
+// Mouse Events (Desktop)
 const onMouseDown = (e) => {
   isDragging.value = true
   startX.value = e.clientX - panX.value
@@ -136,6 +137,27 @@ const onMouseUp = () => {
   isDragging.value = false
 }
 
+// Touch Events (Mobile)
+const onTouchStart = (e) => {
+  if (e.touches.length === 1) {
+    isDragging.value = true
+    startX.value = e.touches[0].clientX - panX.value
+    startY.value = e.touches[0].clientY - panY.value
+  }
+}
+
+const onTouchMove = (e) => {
+  if (!isDragging.value) return
+  if (e.touches.length === 1) {
+    panX.value = e.touches[0].clientX - startX.value
+    panY.value = e.touches[0].clientY - startY.value
+  }
+}
+
+const onTouchEnd = () => {
+  isDragging.value = false
+}
+
 const resetZoom = () => {
   zoomLevel.value = 1
   panX.value = 0
@@ -147,7 +169,7 @@ const resetZoom = () => {
   <div class="detail-page">
     <div class="page-container">
 
-  <div v-if="isLoading" class="layout-grid">
+      <div v-if="isLoading" class="layout-grid">
         <div class="left-column">
           <div class="card detail-card">
             <div class="skeleton skeleton-title"></div>
@@ -291,6 +313,7 @@ const resetZoom = () => {
       </div>
     </div>
 
+    <!-- MODAL GAMBAR / PDF -->
     <div v-if="isModalOpen" class="image-modal-backdrop" @click.self="closeModal">
       <div class="image-modal-content">
         <div class="modal-top-bar">
@@ -304,6 +327,9 @@ const resetZoom = () => {
           @mousemove.prevent="onMouseMove"
           @mouseup="onMouseUp"
           @mouseleave="onMouseUp"
+          @touchstart.prevent="onTouchStart"
+          @touchmove.prevent="onTouchMove"
+          @touchend="onTouchEnd"
           :class="{ 'is-dragging': isDragging }"
         >
           <iframe
@@ -339,6 +365,7 @@ const resetZoom = () => {
 </template>
 
 <style scoped>
+/* SKELETON LOADER */
 .skeleton {
   background: #f1f5f9;
   background: linear-gradient(110deg, #f1f5f9 8%, #e2e8f0 18%, #f1f5f9 33%);
@@ -346,43 +373,14 @@ const resetZoom = () => {
   background-size: 200% 100%;
   animation: shimmer 1.5s linear infinite;
 }
+@keyframes shimmer { to { background-position-x: -200%; } }
+.skeleton-title { width: 40%; height: 28px; margin-bottom: 1.5rem; border-radius: 6px; }
+.skeleton-input { width: 100%; height: 46px; border-radius: 10px; }
+.skeleton-text { height: 14px; margin-bottom: 0.5rem; border-radius: 4px; }
+.skeleton-circle { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
+.mb-6 { margin-bottom: 1.5rem; }
 
-@keyframes shimmer {
-  to {
-    background-position-x: -200%;
-  }
-}
-
-.skeleton-title {
-  width: 40%;
-  height: 28px;
-  margin-bottom: 1.5rem;
-  border-radius: 6px;
-}
-
-.skeleton-input {
-  width: 100%;
-  height: 46px; /* Menyesuaikan tinggi input form kamu */
-  border-radius: 10px;
-}
-
-.skeleton-text {
-  height: 14px;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
-}
-
-.skeleton-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.mb-6 {
-  margin-bottom: 1.5rem;
-}
-/* Variabel Warna Global Component */
+/* VARS & BASE */
 .detail-page {
   --color-primary: #3b82f6;
   --color-text-main: #1e293b;
@@ -395,56 +393,15 @@ const resetZoom = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden; /* Desktop default behavior */
 }
 
 .page-container {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden;
+  overflow: hidden; /* Desktop default behavior */
   width: 100%;
-}
-
-.page-header {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start !important; /* Memaksa elemen rapat ke kiri */
-  gap: 1.25rem;
-  margin-bottom: 2rem;
-  width: 100%;
-}
-
-.header-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start; /* Memaksa teks rata kiri */
-  text-align: left;
-  flex-grow: 1; /* Mengambil sisa ruang di kanan agar tidak terdorong */
-}
-
-/* Pastikan style tombol back ini juga ada agar tidak membesar sendiri */
-.back-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: white;
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0; /* Mencegah tombol gepeng atau mengecil */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.back-btn:hover {
-  background: var(--color-bg-light);
-  color: var(--color-primary);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .back-btn-inline {
@@ -461,30 +418,16 @@ const resetZoom = () => {
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
-
 .back-btn-inline:hover {
   background: var(--color-bg-light);
   color: var(--color-primary);
   border-color: #cbd5e1;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-main);
-  margin: 0;
-}
-
-.text-muted {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  margin: 0.25rem 0 0 0;
-}
-
 /* --- LAYOUT GRID (2 Kolom) --- */
 .layout-grid {
   display: grid;
-  grid-template-columns: 1fr 380px; /* Kolom kiri fleksibel, Kolom kanan fix 380px */
+  grid-template-columns: 1fr 380px; 
   gap: 1.5rem;
   align-items: stretch;
   flex: 1;
@@ -519,8 +462,8 @@ const resetZoom = () => {
 
 .log-card {
   position: sticky;
-  top: 1.5rem; /* Memberikan efek lengket saat di-scroll */
-  max-height: calc(100vh - 3rem);
+  top: 0; 
+  max-height: calc(100vh - 8rem);
   display: flex;
   flex-direction: column;
 }
@@ -532,22 +475,9 @@ const resetZoom = () => {
   margin: 1.25rem 0;
 }
 
-.form-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.section-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.log-header {
-  padding: 1.5rem 1.5rem 0 1.5rem;
-  margin-bottom: 1rem;
-}
+.form-section { display: flex; flex-direction: column; }
+.section-title-wrap { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.log-header { padding: 1.5rem 1.5rem 0 1.5rem; margin-bottom: 1rem; }
 
 .section-icon {
   width: 32px;
@@ -560,48 +490,17 @@ const resetZoom = () => {
   justify-content: center;
 }
 
-.section-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--color-text-main);
-  margin: 0;
-}
+.section-title { font-size: 1.125rem; font-weight: 700; color: var(--color-text-main); margin: 0; }
 
 /* --- FORM GRIDS --- */
-.grid-2-cols {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-}
-
-.grid-2-cols-uneven {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.left-fields, .right-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.col-span-2 {
-  grid-column: span 2;
-}
+.grid-2-cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.grid-2-cols-uneven { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.left-fields, .right-fields { display: flex; flex-direction: column; gap: 1rem; }
+.col-span-2 { grid-column: span 2; }
 
 /* --- INPUTS & FIELDS --- */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #475569;
-}
+.form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.form-label { font-size: 0.875rem; font-weight: 600; color: #475569; }
 
 .readonly-field, .form-control {
   padding: 0.75rem 1rem;
@@ -670,17 +569,9 @@ textarea.form-control {
   flex-grow: 1;
 }
 
-/* Kustomisasi scrollbar untuk area log */
-.log-scroll-area::-webkit-scrollbar {
-  width: 6px;
-}
-.log-scroll-area::-webkit-scrollbar-track {
-  background: transparent;
-}
-.log-scroll-area::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 10px;
-}
+.log-scroll-area::-webkit-scrollbar { width: 6px; }
+.log-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.log-scroll-area::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 
 .empty-log {
   padding: 2rem;
@@ -700,16 +591,11 @@ textarea.form-control {
   padding-left: 0.25rem;
 }
 
-.timeline-item {
-  display: flex;
-  gap: 1rem;
-  position: relative;
-  z-index: 1;
-}
+.timeline-item { display: flex; gap: 1rem; position: relative; z-index: 1; }
 
 .timeline-line {
   position: absolute;
-  left: 0.875rem; /* Setengah dari 28px */
+  left: 0.875rem;
   top: 28px;
   bottom: -1.25rem;
   width: 2px;
@@ -739,12 +625,7 @@ textarea.form-control {
   box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
-.timeline-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.5rem;
-}
+.timeline-header { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.5rem; }
 
 .timeline-status-badge {
   font-size: 0.7rem;
@@ -756,154 +637,131 @@ textarea.form-control {
   align-self: flex-start;
 }
 
-.timeline-time {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.timeline-body {
-  font-size: 0.875rem;
-  color: #475569;
-  line-height: 1.5;
-}
+.timeline-time { font-size: 0.75rem; color: var(--color-text-muted); font-weight: 500; }
+.timeline-body { font-size: 0.875rem; color: #475569; line-height: 1.5; }
 
 /* --- MODAL IMAGE VIEWER --- */
 .image-modal-backdrop {
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
   background-color: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: flex; justify-content: center; align-items: center;
   z-index: 9999;
 }
 
 .image-modal-content {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  position: relative; width: 100vw; height: 100vh;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
 }
 
-.modal-top-bar {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  z-index: 10;
-}
+.modal-top-bar { position: absolute; top: 1.5rem; right: 1.5rem; z-index: 10; }
 
 .close-modal-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  width: 48px;
-  height: 48px;
+  width: 48px; height: 48px;
   border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  display: flex; justify-content: center; align-items: center;
+  cursor: pointer; transition: all 0.2s;
 }
 
-.close-modal-btn:hover {
-  background: #ef4444;
-  transform: scale(1.05);
-}
+.close-modal-btn:hover { background: #ef4444; transform: scale(1.05); }
 
-.image-scroll-container {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  box-sizing: border-box;
+.image-container {
+  width: 100%; height: 100%;
+  display: flex; justify-content: center; align-items: center;
+  overflow: hidden;
+  touch-action: none; /* Mencegah scroll browser bawaan saat drag di mobile */
 }
 
 .zoomable-image {
-  max-width: 90vw;
-  max-height: 85vh;
+  max-width: 90vw; max-height: 85vh;
   object-fit: contain;
-  transition: transform 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+  transition: transform 0.1s ease-out; /* Lebih mulus saat drag */
   transform-origin: center center;
 }
 
 .zoom-controls {
-  position: absolute;
-  bottom: 2.5rem;
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(8px);
-  padding: 0.5rem 0.75rem;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
+  position: absolute; bottom: 2.5rem;
+  background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(8px);
+  padding: 0.5rem 0.75rem; border-radius: 999px;
+  display: flex; align-items: center; gap: 1.25rem;
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: 0 10px 25px rgba(0,0,0,0.3);
 }
 
 .zoom-btn {
-  background: transparent;
-  border: none;
-  color: white;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  background: transparent; border: none; color: white;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; justify-content: center; align-items: center;
+  cursor: pointer; transition: all 0.2s;
 }
 
-.zoom-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.25);
-}
+.zoom-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.25); }
+.zoom-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.zoom-indicator { color: white; font-size: 0.9375rem; font-weight: 600; min-width: 50px; text-align: center; }
 
-.zoom-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
 
-.zoom-indicator {
-  color: white;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  min-width: 50px;
-  text-align: center;
-}
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
 
-/* --- RESPONSIVE MOBILE --- */
 @media (max-width: 1024px) {
+  /* Membebaskan height dan overflow agar bisa discroll native */
+  .detail-page, .page-container {
+    height: auto;
+    overflow: visible;
+  }
+
   .layout-grid {
-    grid-template-columns: 1fr; /* Kembali ke 1 kolom pada layar kecil */
+    grid-template-columns: 1fr;
+    overflow: visible;
   }
   
+  .left-column, .right-column {
+    height: auto;
+    overflow-y: visible;
+    padding-right: 0;
+    padding-bottom: 0;
+  }
+
   .log-card {
     position: static;
     max-height: none;
+  }
+
+  .log-scroll-area {
+    overflow-y: visible;
   }
 }
 
 @media (max-width: 768px) {
   .detail-card {
-    padding: 1.5rem;
+    padding: 1.25rem 1rem;
   }
   
+  /* Menjadikan form input bersusun ke bawah */
   .grid-2-cols, .grid-2-cols-uneven {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1rem;
   }
   
   .col-span-2 {
     grid-column: span 1;
+  }
+
+  /* Penyesuaian modal dan iframe PDF agar pas di layar HP */
+  .pdf-viewer {
+    width: 95vw !important;
+    height: 85vh !important;
+  }
+
+  .zoom-controls {
+    bottom: 1.5rem;
+    gap: 0.75rem;
+    padding: 0.5rem;
   }
 }
 </style>

@@ -171,9 +171,9 @@ const printDocument = () => {
   }
 }
 </script>
+
 <template>
   <div class="print-page">
-
 
     <div class="content-grid">
       <div class="config-column">
@@ -205,7 +205,7 @@ const printDocument = () => {
 
           <div class="status-box" :class="isConnected ? 'status-connected' : 'status-disconnected'">
             <div class="status-info">
-              <component :is="isConnected ? CheckCircle2 : AlertCircle" :size="24" />
+              <component :is="isConnected ? CheckCircle2 : AlertCircle" :size="24" class="status-icon-main"/>
               <div>
                 <h4>{{ isConnected ? 'Printer Siap Digunakan' : 'Printer Terputus' }}</h4>
                 <p v-if="connectionType === 'wifi'">Status: {{ isConnected ? 'Online (Akses OS)' : 'Offline' }}</p>
@@ -271,7 +271,7 @@ const printDocument = () => {
             <div v-else class="pdf-preview-wrapper" :class="paperSize">
               <div class="pdf-preview-header">
                 <div class="file-info">
-                  <component :is="uploadedFileType === 'pdf' ? FileIcon : ImageIcon" :size="16" class="text-blue" />
+                  <component :is="uploadedFileType === 'pdf' ? FileIcon : ImageIcon" :size="16" class="text-blue flex-shrink-0" />
                   <span class="filename">{{ uploadedFileName }}</span>
                 </div>
                 <button class="btn-icon-danger" @click="removeFile" title="Hapus File">
@@ -307,24 +307,23 @@ const printDocument = () => {
 
 <style scoped>
 /* Typography & Layout Dasar */
-.print-page { display: flex; flex-direction: column; gap: 2rem; color: #1e293b; }
-.page-subtitle { color: #64748b; font-size: 0.95rem; }
+.print-page { display: flex; flex-direction: column; gap: 2rem; color: #1e293b; box-sizing: border-box; }
 .text-blue { color: #3b82f6; }
+.flex-shrink-0 { flex-shrink: 0; }
 
 /* Grid System */
 .content-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; align-items: stretch; }
 
 /* Cards */
-.card { padding: 1.5rem; display: flex; flex-direction: column; }
+.card { background: white; padding: 1.5rem; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .config-column { display: flex; flex-direction: column; gap: 1.5rem; height: 100%; }
 .config-column .card:last-child { flex: 1; display: flex; flex-direction: column; }
-.config-column .card:last-child .form-group { flex: 1; display: flex; flex-direction: column; }
-.config-column .card:last-child .radio-group { flex: 1; }
 .card-header { display: flex; align-items: center; justify-content: flex-start; gap: 0.75rem; margin-bottom: 1.5rem; }
 .card-header h2 { font-size: 1.125rem; font-weight: 600; margin: 0; }
 .border-bottom { border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; justify-content: space-between !important; }
 
 /* Badges */
+.badge { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 999px; background: #f1f5f9; color: #64748b; }
 .status-success { background: #dcfce7; color: #166534; }
 
 /* Tabs Koneksi */
@@ -333,8 +332,9 @@ const printDocument = () => {
 .tab-btn.active { background: white; color: #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
 /* Status Box */
-.status-box { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-radius: 8px; border: 1px solid transparent; }
+.status-box { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-radius: 8px; border: 1px solid transparent; gap: 1rem; }
 .status-info { display: flex; align-items: center; gap: 0.75rem; }
+.status-icon-main { flex-shrink: 0; }
 .status-info h4 { font-size: 0.875rem; font-weight: 600; margin: 0; }
 .status-info p { font-size: 0.75rem; margin: 0; margin-top: 0.125rem; opacity: 0.8; }
 .status-connected { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
@@ -350,12 +350,12 @@ const printDocument = () => {
 
 /* Area Container */
 .preview-column { display: flex; flex-direction: column; height: 100%; }
-.preview-card { display: flex; flex-direction: column; flex: 1; min-height: 550px; padding: 1.5rem; }
+.preview-card { display: flex; flex-direction: column; flex: 1; min-height: 550px; }
 .pdf-container { flex: 1; display: flex; flex-direction: column; margin-bottom: 1.5rem; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; overflow: hidden; }
 
 /* Upload Zone */
 .hidden-input { display: none; }
-.upload-zone { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; min-height: 350px; }
+.upload-zone { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; min-height: 300px; }
 .upload-zone:hover { background: #f1f5f9; border-color: #94a3b8; }
 .upload-content { text-align: center; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
 .icon-circle { width: 64px; height: 64px; background: #eff6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
@@ -372,22 +372,74 @@ const printDocument = () => {
 .filename { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Viewers */
-.viewer-area { flex: 1; display: flex; overflow: auto; background: #f1f5f9; }
+.viewer-area { flex: 1; display: flex; overflow: auto; background: #f1f5f9; -webkit-overflow-scrolling: touch; }
 .document-viewer { flex: 1; width: 100%; min-height: 400px; border: none; background: white; }
 .image-viewer-container { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 1rem; overflow-y: auto; }
 .image-viewer { max-width: 100%; height: auto; object-fit: contain; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 4px; }
 
 /* Buttons */
 .action-buttons { margin-top: auto; }
+.w-full { width: 100%; }
 .btn-primary { display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; border: none; background: #3b82f6; color: white; padding: 0.875rem; font-size: 1rem; }
 .btn-primary:hover:not(:disabled) { background: #2563eb; }
 .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
-.btn-outline-small { display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; border: 1px solid currentColor; padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+
+.btn-outline-small { display: flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; border: 1px solid currentColor; padding: 0.5rem 0.75rem; font-size: 0.8125rem; white-space: nowrap; }
 .btn-outline-small:hover { background: currentColor; color: white !important; }
-.btn-icon-danger { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.25rem; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+
+.btn-icon-danger { background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0.4rem; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
 .btn-icon-danger:hover { background: #fee2e2; }
 
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
 @media (max-width: 1024px) {
-  .content-grid { grid-template-columns: 1fr; }
+  /* Ubah layout jadi atas-bawah di tablet/mobile */
+  .content-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .preview-card { min-height: 500px; }
+}
+
+@media (max-width: 768px) {
+  .print-page { gap: 1rem; }
+  .card { padding: 1.25rem; }
+  .card-header h2 { font-size: 1rem; }
+  
+  /* Status Box di Mobile disusun ke bawah */
+  .status-box { 
+    flex-direction: column; 
+    align-items: flex-start;
+  }
+  .btn-outline-small { 
+    width: 100%; 
+    padding: 0.75rem; 
+  }
+
+  /* File Preview constraints di Mobile */
+  .filename { max-width: 150px; }
+  
+  /* Mencegah preview container width statis tumpah di HP */
+  .pdf-preview-wrapper[class~='58mm'],
+  .pdf-preview-wrapper[class~='80mm'] { 
+    max-width: 100%; 
+  }
+
+  .upload-content { padding: 1.5rem 1rem; }
+}
+
+@media (max-width: 480px) {
+  .card { padding: 1rem; }
+  
+  /* Radio Button kertas turun ke bawah jika layar HP sangat sempit */
+  .radio-group { flex-direction: column; gap: 0.75rem; }
+  
+  .icon-circle { width: 56px; height: 56px; }
+  .upload-content h3 { font-size: 1rem; }
+  .filename { max-width: 120px; }
+
+  /* Menurunkan min-height pada HP agar layout tidak terlalu panjang */
+  .preview-card { min-height: 450px; }
+  .upload-zone { min-height: 250px; }
+  .document-viewer { min-height: 300px; }
 }
 </style>

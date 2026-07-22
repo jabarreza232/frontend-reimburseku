@@ -97,8 +97,6 @@ const exportToPDF = () => {
   doc.save(fileName)
 }
 
-// Notifikasi telah dipindah ke StaffLayout.vue
-
 // Fetch Data API Reimbursement
 const fetchReimbursements = async (page = 1) => {
   isLoading.value = true
@@ -118,7 +116,6 @@ const fetchReimbursements = async (page = 1) => {
       jumlah: formatRupiah(item.amount),
       tanggal: new Date(item.expense_date).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       tanggalIso: item.expense_date
-
     }))
 
     halamanAktif.value = metaData.current_page || 1
@@ -279,8 +276,7 @@ const getBorderColor = (kategori) => {
 <template>
   <div class="dasbor-staf">
     
-        <div class="header-utama">
-
+    <div class="header-utama">
       <div class="greetings">
         <h2 class="teks-sapaan">Halo, {{ authStore.user?.name || 'Staf' }}! 👋</h2>
         <p class="teks-sapaan-sub">Selamat datang di dashboard Reimburseku.</p>
@@ -288,31 +284,30 @@ const getBorderColor = (kategori) => {
 
       <div class="header-actions">
         <button class="btn btn-primary tombol-tambah" @click="router.push('/staf/reimbursement/tambah')">
-          <Plus :size="16" /> 
+          <Plus :size="18" /> 
           <span class="text-tombol">Tambah Reimbursement</span> 
         </button>
-
-
-
       </div>
     </div>
 
-    
-    <div class="ringkasan-finansial">
-      <div class="rf-card primary-card">
-        <div class="rf-icon-wrapper"><Wallet :size="20" /></div>
-        <p class="rf-label">Total Pengajuan Bulan Ini</p>
-        <h3 class="rf-value">{{ ringkasanBulanIni.pengajuan }}</h3>
-      </div>
-      <div class="rf-card">
-        <div class="rf-icon-wrapper success"><CheckCircle2 :size="20" /></div>
-        <p class="rf-label">Disetujui / Dibayar</p>
-        <h3 class="rf-value text-success">{{ ringkasanBulanIni.disetujui }}</h3>
-      </div>
-      <div class="rf-card">
-        <div class="rf-icon-wrapper danger"><XCircle :size="20" /></div>
-        <p class="rf-label">Total Ditolak</p>
-        <h3 class="rf-value text-danger">{{ ringkasanBulanIni.ditolak }}</h3>
+    <!-- Ringkasan Finansial Scrollable -->
+    <div class="ringkasan-finansial-wrapper">
+      <div class="ringkasan-finansial">
+        <div class="rf-card primary-card">
+          <div class="rf-icon-wrapper"><Wallet :size="20" /></div>
+          <p class="rf-label">Total Pengajuan Bulan Ini</p>
+          <h3 class="rf-value">{{ ringkasanBulanIni.pengajuan }}</h3>
+        </div>
+        <div class="rf-card">
+          <div class="rf-icon-wrapper success"><CheckCircle2 :size="20" /></div>
+          <p class="rf-label">Disetujui / Dibayar</p>
+          <h3 class="rf-value text-success">{{ ringkasanBulanIni.disetujui }}</h3>
+        </div>
+        <div class="rf-card">
+          <div class="rf-icon-wrapper danger"><XCircle :size="20" /></div>
+          <p class="rf-label">Total Ditolak</p>
+          <h3 class="rf-value text-danger">{{ ringkasanBulanIni.ditolak }}</h3>
+        </div>
       </div>
     </div>
 
@@ -339,8 +334,8 @@ const getBorderColor = (kategori) => {
             <div class="dropdown-wrapper">
               <button class="btn-ekspor" @click="toggleExportMenu">
                 <Download :size="18" class="ikon-ekspor" />
-                <span>Ekspor</span>
-                <ChevronDown :size="14" style="margin-left: 2px; color: #64748b;" />
+                <span class="text-ekspor">Ekspor</span>
+                <ChevronDown :size="14" class="ikon-chevron-ekspor" />
               </button>
 
               <div v-if="showExportMenu" class="dropdown-menu">
@@ -368,7 +363,7 @@ const getBorderColor = (kategori) => {
                   </div>
                   <div class="skeleton-box skeleton-text" style="width: 100px; height: 16px;"></div>
                 </div>
-                <div class="skeleton-box skeleton-text" style="width: 70px;"></div>
+                <div class="skeleton-box skeleton-text date-skel" style="width: 70px;"></div>
               </div>
             </div>
           </div>
@@ -425,23 +420,23 @@ const getBorderColor = (kategori) => {
       </div>
 
       <div class="kolom-kanan">
-        <div class="title-with-filters" style="min-height: 44px;">
-          <h2 class="judul-seksi">Statistik dan Laporan</h2>
+        <div class="title-with-filters title-statistik">
+          <h2 class="judul-seksi">Statistik Kategori</h2>
         </div>
         <div class="grid-statistik">
-  <div v-for="s in kategoriStats" :key="s.label" class="kartu-stat" :style="{ background: s.bg }">
-    <div class="stat-ikon">
-      <component :is="s.ikon" :size="28" />
-    </div>
-    <div class="stat-info">
-      <p class="stat-label">{{ s.label }}</p>
-      <p class="stat-jumlah">{{ s.jumlah }}</p>
-    </div>
-  </div>
-      </div>
+          <div v-for="s in kategoriStats" :key="s.label" class="kartu-stat" :style="{ background: s.bg }">
+            <div class="stat-ikon">
+              <component :is="s.ikon" :size="28" />
+            </div>
+            <div class="stat-info">
+              <p class="stat-label">{{ s.label }}</p>
+              <p class="stat-jumlah">{{ s.jumlah }}</p>
+            </div>
+          </div>
+        </div>
 
         <div v-if="pengajuanTerakhir" class="tracker-section">
-          <h2 class="judul-seksi judul-tracker">Pelacakan Pengajuan Terakhir</h2>
+          <h2 class="judul-seksi judul-tracker">Pelacakan Terakhir</h2>
           <div class="tracker-card">
             <div class="tracker-header-info">
               <h4 class="tracker-judul-klaim">{{ pengajuanTerakhir.judul }}</h4>
@@ -478,6 +473,7 @@ const getBorderColor = (kategori) => {
       </div>
     </div>
 
+    <!-- Modal Bulan -->
     <div v-if="showModalBulan" class="modal-backdrop" @click.self="showModalBulan = false">
       <div class="modal month-modal">
         <h3 class="modal-judul">Pilih Bulan</h3>
@@ -507,6 +503,16 @@ const getBorderColor = (kategori) => {
 </template>
 
 <style scoped>
+/* Main Layout Properties */
+.dasbor-staf {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 1.25rem;
+}
+
 /* Header Layout with Filters */
 .title-with-filters {
   display: flex;
@@ -517,6 +523,7 @@ const getBorderColor = (kategori) => {
   margin-bottom: 1rem;
 }
 .title-with-filters .judul-seksi { margin-bottom: 0; }
+.title-statistik { min-height: 44px; }
 
 .select-wrapper {
   position: relative;
@@ -541,33 +548,12 @@ const getBorderColor = (kategori) => {
 .header-select:hover, .header-select:focus {
   border-color: var(--color-primary, #3b82f6);
 }
-
 .select-icon {
   position: absolute;
   right: 0.5rem;
   pointer-events: none;
   color: #64748b;
 }
-
-.header-btn-tanggal {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: white;
-  border: 1px solid var(--color-border, #e2e8f0);
-  color: var(--color-text-main, #1e293b);
-  padding: 0.4rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.header-btn-tanggal:hover {
-  border-color: var(--color-primary, #3b82f6);
-}
-
-.ikon-kalender { color: #64748b; }
 
 /* --- KONTROL AKSI (Kalender & Ekspor) --- */
 .kontrol-aksi-row { display: flex; gap: 0.75rem; }
@@ -586,9 +572,14 @@ const getBorderColor = (kategori) => {
 }
 .btn-ekspor:hover { background-color: #f1f5f9; color: #0f172a; }
 .ikon-ekspor { color: #64748b; }
+.ikon-chevron-ekspor { color: #64748b; margin-left: 2px; }
 
 /* --- MODAL BULAN --- */
-.month-modal { max-width: 340px; padding: 1.5rem; }
+.modal-backdrop {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.month-modal { background: white; border-radius: 12px; max-width: 340px; padding: 1.5rem; width: 90%; }
 .modal-judul {
   font-size: 1.125rem; font-weight: 700; margin-bottom: 1rem; text-align: center;
   color: var(--color-text-main, #1e293b);
@@ -623,17 +614,7 @@ const getBorderColor = (kategori) => {
 }
 .btn-terapkan:hover { background: #2563eb; }
 
-/* --- Main Layout --- */
-.dasbor-staf {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  gap: 1.25rem;
-}
-
-/* --- HEADER UTAMA & NOTIFIKASI --- */
+/* --- HEADER UTAMA --- */
 .header-utama {
   display: flex;
   justify-content: space-between;
@@ -655,11 +636,6 @@ const getBorderColor = (kategori) => {
   color: var(--color-text-muted, #64748b);
   margin: 0;
 }
-.judul-halaman {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-main, #1e293b);
-}
 .judul-seksi {
   font-size: 1.0625rem;
   font-weight: 700;
@@ -670,6 +646,7 @@ const getBorderColor = (kategori) => {
 .tombol-tambah {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font-size: 0.875rem;
   background-color: #3b82f6;
@@ -679,17 +656,18 @@ const getBorderColor = (kategori) => {
   border-radius: 8px;
   cursor: pointer;
   transition: opacity 0.2s;
+  height: 2.5rem;
 }
 .tombol-tambah:hover { opacity: 0.9; }
 
-
-
-/* --- RINGKASAN FINANSIAL (HIGHLIGHT CARDS) --- */
+/* --- RINGKASAN FINANSIAL --- */
+.ringkasan-finansial-wrapper {
+  margin-bottom: 0.5rem;
+}
 .ringkasan-finansial {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
-  margin-bottom: 0.5rem;
 }
 .rf-card {
   background-color: white;
@@ -709,7 +687,7 @@ const getBorderColor = (kategori) => {
 .rf-card:not(.primary-card) .rf-label { color: #64748b; }
 .rf-value { font-size: 1.5rem; font-weight: 700; margin: 0; }
 
-/* Grid utama */
+/* --- GRID UTAMA --- */
 .grid-dasbor {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
@@ -719,37 +697,16 @@ const getBorderColor = (kategori) => {
   min-height: 0;
 }
 
-/* ─── Kolom kiri ─── */
+/* ─── Kolom Kiri ─── */
 .kolom-kiri { display: flex; flex-direction: column; gap: 0; min-height: 0; overflow: hidden; }
-.filter-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.filter-chip {
-  display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.3rem 0.875rem;
-  border-radius: 999px; border: 1px solid var(--color-border, #e2e8f0); background: white;
-  font-size: 0.8125rem; font-weight: 500; color: var(--color-text-muted, #64748b);
-  cursor: pointer; transition: all 0.15s;
-}
-.filter-chip:hover { border-color: #3b82f6; color: #3b82f6; }
-.filter-chip-aktif { background: #3b82f6; border-color: #3b82f6; color: white; }
-.titik-warna { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.pilih-bulan { margin-bottom: 0; }
 
-/* --- DAFTAR REIMBURSEMENT --- */
+/* Daftar Reimbursement */
 .daftar-container {
   background: white; border: 1px solid var(--color-border, #e2e8f0); border-radius: 12px;
   overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative;
   display: flex; flex-direction: column; flex: 1; min-height: 300px;
 }
 .daftar-list { flex: 1; display: flex; flex-direction: column; }
-.loading-overlay {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(2px); display: flex; flex-direction: column; justify-content: center;
-  align-items: center; z-index: 10;
-}
-.spinner {
-  width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid var(--color-primary, #3b82f6);
-  border-radius: 50%; animation: spin 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite; margin-bottom: 1rem;
-}
-.loading-teks { font-size: 0.875rem; font-weight: 500; color: var(--color-text-muted, #64748b); }
 
 .reimbursement-cards {
   display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem;
@@ -769,10 +726,17 @@ const getBorderColor = (kategori) => {
 .card-content { padding: 1.25rem 1.5rem; flex: 1; display: flex; justify-content: space-between; align-items: flex-end; }
 .card-info { display: flex; flex-direction: column; gap: 0.6rem; }
 .card-title { margin: 0; font-size: 0.95rem; font-weight: 600; color: #111827; }
-.status-badge-container { display: flex; align-items: center; gap: 0.75rem; }
+.status-badge-container { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .status-reason { font-size: 0.8rem; color: #9CA3AF; }
 .amount { font-size: 1rem; font-weight: 700; color: #111827; }
 .date { font-size: 0.75rem; color: #9CA3AF; white-space: nowrap; }
+
+/* Status Pill CSS (Asumsi format dari utilitas Anda) */
+.status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.status-pill.menunggu { background-color: #fef3c7; color: #d97706; }
+.status-pill.diterima { background-color: #dbeafe; color: #2563eb; }
+.status-pill.dibayar { background-color: #dcfce3; color: #16a34a; }
+.status-pill.ditolak { background-color: #fee2e2; color: #dc2626; }
 
 /* Paginasi */
 .paginasi {
@@ -804,7 +768,7 @@ const getBorderColor = (kategori) => {
 .grid-statistik {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 .kartu-stat {
   border-radius: 10px;
@@ -900,7 +864,6 @@ const getBorderColor = (kategori) => {
 
 /* Timeline */
 .timeline {
-  box-shadow: var(--shadow-sm);
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1003,47 +966,180 @@ const getBorderColor = (kategori) => {
 }
 .dropdown-item:hover { background-color: #f1f5f9; color: #0f172a; }
 
-/* Responsivitas Mobile */
-@media (max-width: 640px) {
-  .header-utama {
-    align-items: center;
-  }
-  .tombol-tambah {
-    padding: 0.5rem;
-  }
-  .tombol-tambah .text-tombol {
-    display: none;
-  }
-}
-
-@media (max-width: 1100px) {
-  .grid-dasbor {
-    grid-template-columns: 1fr;
-  }
-  .grid-statistik {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .grid-statistik {
-    grid-template-columns: 1fr;
-  }
-}
 /* Skeleton Loader */
 .skeleton-box {
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: loadingSkeleton 1.5s infinite;
 }
-
 .skeleton-text {
   height: 12px;
   border-radius: 4px;
 }
-
 @keyframes loadingSkeleton {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 1100px) {
+  .grid-dasbor {
+    grid-template-columns: 1fr; /* Tumpuk sidebar kanan ke bawah */
+  }
+  .kolom-kanan {
+    padding-right: 0;
+    padding-left: 0;
+  }
+  .grid-statistik {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  /* Ubah Kartu Summary jadi bisa di-scroll secara horizontal */
+  .ringkasan-finansial-wrapper {
+    margin: 0 -1rem; /* Mengimbangi padding luar jika ada */
+    padding: 0 1rem;
+  }
+  .ringkasan-finansial {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.75rem;
+    -webkit-overflow-scrolling: touch;
+    gap: 1rem;
+  }
+  .ringkasan-finansial::-webkit-scrollbar {
+    height: 6px;
+  }
+  .ringkasan-finansial::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .ringkasan-finansial::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .rf-card {
+    min-width: 260px;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+  
+  .title-with-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .kontrol-aksi-row {
+    width: 100%;
+  }
+  
+  /* Matikan overflow hidden pada container utama di mobile agar bisa scroll natural ke bawah */
+  .dasbor-staf {
+    overflow: visible;
+    height: auto;
+  }
+  .kolom-kiri, .kolom-kanan {
+    overflow: visible;
+  }
+  .reimbursement-cards {
+    overflow-y: visible;
+    max-height: none;
+  }
+  .daftar-container {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .dasbor-staf {
+    padding-bottom: 1.5rem;
+  }
+  
+  .header-utama {
+    align-items: center;
+  }
+  .greetings .teks-sapaan {
+    font-size: 1.15rem;
+  }
+  .greetings .teks-sapaan-sub {
+    font-size: 0.85rem;
+  }
+
+  /* Ubah tombol "Tambah Reimbursement" jadi Bulat dengan Ikon Saja di HP */
+  .tombol-tambah {
+    padding: 0;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+  }
+  .tombol-tambah .text-tombol {
+    display: none;
+  }
+  
+  /* Kontrol Filter, Tanggal, & Export di HP */
+  .kontrol-aksi-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .select-wrapper {
+    flex: 1 1 45%;
+  }
+  .header-select {
+    width: 100%;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+  }
+  .dropdown-wrapper {
+    flex: 1 1 45%;
+  }
+  .btn-ekspor {
+    width: 100%;
+    justify-content: center;
+    padding: 0.5rem;
+  }
+  .btn-tanggal-full {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    padding: 0.6rem 1rem;
+  }
+  
+  /* Merapikan Info di Card Reimbursement di HP */
+  .card-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+  .card-info {
+    width: 100%;
+    gap: 0.4rem;
+  }
+  .date {
+    align-self: flex-start;
+  }
+  .date-skel { margin-top: 0.5rem; }
+
+  /* Statistik HP */
+  .grid-statistik {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Tracker Flow */
+  .tracker-header-info {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .tracker-judul-klaim {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  /* Jika Layar HP sangat kecil (misal iPhone SE) */
+  .grid-statistik {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
