@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterView, RouterLink, useRouter, useRoute } from 'vue-router'
 import {
-  LayoutDashboard, FileText, Wallet, Users, LogOut, Bell
+  LayoutDashboard, FileText, Wallet, Users, LogOut, Bell, Menu
 } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
@@ -20,6 +20,18 @@ const menuItems = [
   { to: '/finance/karyawan', label: 'Karyawan', icon: Users },
   { to: '/finance/deposit', label: 'Deposit', icon: Wallet },
 ]
+
+// === STATE & FUNGSI SIDEBAR MOBILE ===
+const isSidebarOpen = ref(false)
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
+const closeSidebar = () => { isSidebarOpen.value = false }
+
+// Tutup sidebar otomatis saat pindah rute di mobile
+router.afterEach(() => {
+  if (window.innerWidth <= 768) {
+    closeSidebar()
+  }
+})
 
 // === STATE & FUNGSI NOTIFIKASI ===
 const notifications = ref([])
@@ -72,8 +84,12 @@ function logout() {
 
 <template>
   <div class="layout-container">
+    
+    <!-- Overlay Mobile Sidebar -->
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
+
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
       <div class="sidebar-top">
         <RouterLink to="/finance/dasbor" class="logo-area">
           <div class="logo-icon">RK</div>
@@ -109,6 +125,9 @@ function logout() {
     <main class="main-content">
       <header class="topbar">
         <div class="topbar-left">
+          <button class="menu-toggle" @click="toggleSidebar">
+            <Menu :size="24" />
+          </button>
           <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
         <div class="topbar-right">
@@ -179,12 +198,12 @@ function logout() {
 </template>
 
 <style scoped>
-.layout-container { display: flex; min-height: 100vh; background: var(--color-background); }
+.layout-container { display: flex; min-height: 100vh; background: var(--color-background); overflow-x: hidden; }
 
 /* Sidebar Styles */
 .sidebar {
   width: 250px; background: var(--color-primary); color: white; display: flex; flex-direction: column;
-  position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-top { padding: 1.5rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -197,7 +216,7 @@ function logout() {
 .brand { font-size: 1.125rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
 .role { font-size: 0.65rem; font-weight: 700; color: rgba(255,255,255,0.7); letter-spacing: 0.1em; margin-top: 2px; }
 
-.sidebar-nav { flex: 1; padding: 1.5rem 0.75rem; display: flex; flex-direction: column; gap: 0.375rem; }
+.sidebar-nav { flex: 1; padding: 1.5rem 0.75rem; display: flex; flex-direction: column; gap: 0.375rem; overflow-y: auto; }
 .nav-item {
   display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 10px;
   color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.875rem; font-weight: 600; transition: all 0.2s;
@@ -209,18 +228,21 @@ function logout() {
 .logout-btn { background-color: transparent; color: rgba(255,255,255,0.7); border: none; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: flex-start; text-align: left; }
 .logout-btn:hover { background-color: #dc2626 !important; color: white !important; }
 
+/* Overlay untuk Mobile */
+.sidebar-overlay { display: none; }
+
 /* Main Content Styles */
-.main-content { flex: 1; margin-left: 250px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.main-content { flex: 1; margin-left: 250px; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; min-height: 100vh; overflow: hidden; }
 
 .topbar {
   height: 64px; background: white; border-bottom: 1px solid #f1f5f9; padding: 0 1.5rem;
   display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40;
 }
-.page-title {
-  font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;
-}
+.topbar-left { display: flex; align-items: center; gap: 1rem; }
+.menu-toggle { display: none; background: transparent; border: none; color: #475569; cursor: pointer; padding: 0.25rem; }
+.page-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0; }
 
-.topbar-right { display: flex; align-items: center; gap: 1.5rem; }
+.topbar-right { display: flex; align-items: center; gap: 1.25rem; }
 
 /* === NOTIFIKASI CSS === */
 .notif-wrapper { position: relative; display: flex; align-items: center; }
@@ -237,17 +259,14 @@ function logout() {
 }
 
 .notif-dropdown {
-  position: absolute; top: calc(100% + 10px); right: -10px; width: 360px; /* Diperlebar sedikit agar lebih lega */
+  position: absolute; top: calc(100% + 10px); right: -10px; width: 360px; 
   background: white; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
   border: 1px solid #e2e8f0; z-index: 50; display: flex; flex-direction: column; overflow: hidden;
 }
 .notif-header { padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
 .notif-header h3 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #0f172a; }
 
-.notif-body { 
-  max-height: 380px; /* Batas tinggi, jika lebih dari ini akan otomatis muncul scrollbar */
-  overflow-y: auto; 
-}
+.notif-body { max-height: 380px; overflow-y: auto; }
 .notif-empty { padding: 2rem; text-align: center; color: #94a3b8; font-size: 0.85rem; }
 
 .notif-item {
@@ -264,19 +283,13 @@ function logout() {
 .notif-content { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; }
 .notif-title { margin: 0; font-size: 0.85rem; font-weight: 700; color: #1e293b; }
 
-/* Deskripsi Notifikasi yang dipotong (Clamp) */
 .notif-desc { 
-  margin: 0; 
-  font-size: 0.8rem; 
-  color: #475569; 
-  line-height: 1.4; 
-  word-wrap: break-word; /* Memastikan kata yang panjang tidak keluar kotak */
+  margin: 0; font-size: 0.8rem; color: #475569; line-height: 1.4; 
+  word-wrap: break-word; 
 }
 
-/* Pembungkus waktu dan link detail */
 .notif-meta {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 0.25rem;
+  display: flex; align-items: center; justify-content: space-between; margin-top: 0.25rem;
 }
 .notif-time { font-size: 0.7rem; color: #94a3b8; font-weight: 500; }
 .notif-detail-link { font-size: 0.75rem; font-weight: 700; color: #3b82f6; transition: color 0.2s; }
@@ -302,16 +315,61 @@ function logout() {
 .user-profile-top:hover { background: #f1f5f9; }
 .avatar {
   width: 28px; height: 28px; background: #e2e8f0; color: #64748b; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; flex-shrink: 0;
 }
-.user-name { font-size: 0.8125rem; font-weight: 600; color: #475569; }
+.user-name { font-size: 0.8125rem; font-weight: 600; color: #475569; white-space: nowrap; }
 
-.page-content { padding: 1.5rem 2rem; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.page-content { padding: 1.5rem 2rem; flex: 1; display: flex; flex-direction: column; overflow-x: hidden; }
 
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
 @media (max-width: 768px) {
-  .sidebar { width: 70px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-  .sidebar .logo-text, .sidebar span { display: none; }
-  .main-content { margin-left: 70px; }
+  /* Ubah margin Main Content karena Sidebar akan di-hide */
+  .main-content { margin-left: 0; }
+  
+  /* Sembunyikan Nama User, hanya Avatar */
+  .user-name { display: none; }
+  .user-profile-top { padding: 0.25rem; border-radius: 50%; }
+
+  /* Topbar Penyesuaian */
+  .topbar { padding: 0 1rem; }
+  .menu-toggle { display: flex; align-items: center; justify-content: center; }
+  .page-title { font-size: 1.125rem; }
+
+  /* Kurangi padding Konten */
   .page-content { padding: 1rem; }
+
+  /* Sidebar menjadi Laci (Drawer) Off-Canvas */
+  .sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+  }
+  .sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Latar belakang redup saat sidebar terbuka */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 45;
+    backdrop-filter: blur(2px);
+  }
+}
+
+@media (max-width: 480px) {
+  /* Dropdown Notifikasi menyesuaikan layar penuh pada HP sempit */
+  .notif-dropdown {
+    position: fixed;
+    top: 60px;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: calc(100vw - 2rem);
+  }
 }
 </style>

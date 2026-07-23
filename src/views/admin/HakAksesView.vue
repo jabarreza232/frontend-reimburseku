@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Plus, PencilLine, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight, X, Check, Download, FileText, FileSpreadsheet } from 'lucide-vue-next'
+import { Plus, PencilLine, Trash2, Search, ChevronDown, ChevronLeft, ChevronRight, Check, Download, FileText, FileSpreadsheet } from 'lucide-vue-next'
 import ApiService from '@/api/ApiService'
 import Swal from 'sweetalert2'
 
@@ -172,7 +172,6 @@ function initPermissions() {
   return perms
 }
 
-// Fungsi memunculkan Toast "Dalam Pengembangan"
 function showDevelopmentToast() {
   Swal.fire({
     toast: true,
@@ -185,7 +184,6 @@ function showDevelopmentToast() {
   })
 }
 
-// OpenAdd tidak digunakan di button, tapi biarkan fungsinya jika nanti dibutuhkan
 function openAdd() {
   isEdit.value = false
   editId.value = null
@@ -196,7 +194,6 @@ function openAdd() {
 function openEdit(r) {
   isEdit.value = true
   editId.value = r.id
-  // Parse permissions agar terpisah dari reference aslinya
   formData.value = { 
     role_name: r.name, 
     description: r.description, 
@@ -206,12 +203,12 @@ function openEdit(r) {
 }
 
 function togglePerm(moduleKey, perm) {
-  if (isEdit.value) return // Cegah jika tembus event
+  if (isEdit.value) return
   formData.value.permissions[moduleKey][perm] = !formData.value.permissions[moduleKey][perm]
 }
 
 function toggleAllModule(moduleKey, perms) {
-  if (isEdit.value) return // Cegah jika tembus event
+  if (isEdit.value) return
   const allChecked = perms.every(p => formData.value.permissions[moduleKey][p])
   perms.forEach(p => { formData.value.permissions[moduleKey][p] = !allChecked })
 }
@@ -220,7 +217,6 @@ function closeAdd() {
   showModal.value = false
 }
 
-// === FUNGSI SUBMIT (API SAVE & UPDATE) ===
 async function submitAdd() {
   try {
     const payload = {
@@ -301,72 +297,79 @@ const filteredRoles = computed(() => {
             <input v-model="searchQuery" type="text" placeholder="Cari hak akses..." class="search-input" />
           </div>
 
-          <!-- CUSTOM SORT DROPDOWN -->
-          <div class="sort-dropdown">
-            <button class="btn btn-outline btn-sort" @click="showSortMenu = !showSortMenu">
-              Urutkan <ChevronDown :size="12" />
-            </button>
-            <transition name="fade-down">
-              <div v-if="showSortMenu" class="custom-dropdown-menu">
-                <div 
-                  v-for="option in sortOptions" 
-                  :key="option.value" 
-                  class="dropdown-item"
-                  :class="{ active: currentSort === option.value }"
-                  @click="currentSort = option.value; showSortMenu = false"
-                >
-                  <span>{{ option.label }}</span>
-                  <Check v-if="currentSort === option.value" :size="14" class="text-primary" />
+          <!-- GROUP TOMBOL UNTUK TAMPILAN MOBILE -->
+          <div class="buttons-group">
+            <!-- CUSTOM SORT DROPDOWN -->
+            <div class="sort-dropdown">
+              <button class="btn btn-outline btn-sort" @click="showSortMenu = !showSortMenu">
+                Urutkan <ChevronDown :size="12" />
+              </button>
+              <transition name="fade-down">
+                <div v-if="showSortMenu" class="custom-dropdown-menu">
+                  <div 
+                    v-for="option in sortOptions" 
+                    :key="option.value" 
+                    class="dropdown-item"
+                    :class="{ active: currentSort === option.value }"
+                    @click="currentSort = option.value; showSortMenu = false"
+                  >
+                    <span>{{ option.label }}</span>
+                    <Check v-if="currentSort === option.value" :size="14" class="text-primary" />
+                  </div>
                 </div>
-              </div>
-            </transition>
-          </div>
+              </transition>
+            </div>
 
-          <!-- EXPORT DROPDOWN -->
-          <div class="export-dropdown" style="position: relative;">
-            <button class="btn btn-outline btn-export" @click="showExportMenu = !showExportMenu">
-              <Download :size="14" /> Export <ChevronDown :size="12" />
-            </button>
-            <transition name="fade-down">
-              <div v-if="showExportMenu" class="custom-dropdown-menu export-menu">
-                <div class="dropdown-item" @click="exportToPDF">
-                  <FileText :size="14" class="text-danger" /> <span>Export to PDF</span>
+            <!-- EXPORT DROPDOWN -->
+            <div class="export-dropdown">
+              <button class="btn btn-outline btn-export" @click="showExportMenu = !showExportMenu">
+                <Download :size="14" /> Export <ChevronDown :size="12" />
+              </button>
+              <transition name="fade-down">
+                <div v-if="showExportMenu" class="custom-dropdown-menu export-menu">
+                  <div class="dropdown-item" @click="exportToPDF">
+                    <FileText :size="14" class="text-danger" /> <span>Export to PDF</span>
+                  </div>
+                  <div class="dropdown-item" @click="exportToExcel">
+                    <FileSpreadsheet :size="14" class="text-success" /> <span>Export to Excel (CSV)</span>
+                  </div>
                 </div>
-                <div class="dropdown-item" @click="exportToExcel">
-                  <FileSpreadsheet :size="14" class="text-success" /> <span>Export to Excel (CSV)</span>
-                </div>
-              </div>
-            </transition>
-          </div>
+              </transition>
+            </div>
 
-          <!-- TOMBOL TAMBAH HAK AKSES (Disabled Visual + Memanggil Toast) -->
-          <button class="btn btn-primary btn-add" @click="showDevelopmentToast" style="opacity: 0.6; cursor: not-allowed;">
-            <Plus :size="14" /> Tamb Hak Akses
-          </button>
+            <!-- TOMBOL TAMBAH HAK AKSES -->
+            <button class="btn btn-primary btn-add" @click="showDevelopmentToast" style="opacity: 0.6; cursor: not-allowed;">
+              <Plus :size="14" /> Tambah Akses
+            </button>
+          </div>
         </div>
       </div>
 
+      <!-- WRAPPER TABEL DENGAN SCROLL HORIZONTAL -->
       <div class="table-responsive">
         <table class="modern-table">
           <thead>
             <tr>
-              <th width="20%">NAMA HAK</th>
-              <th width="20%">SLUG</th>
+              <th>NAMA HAK</th>
+              <th>SLUG</th>
               <th>DESKRIPSI</th>
-              <th width="120" class="text-center">AKSI</th>
+              <th class="text-center">AKSI</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="role in filteredRoles" :key="role.id">
               <td class="font-semibold text-primary-dark">{{ role.name }}</td>
               <td class="text-muted font-mono">{{ role.slug }}</td>
-              <td class="text-muted">{{ role.description }}</td>
+              <td class="text-muted text-desc">{{ role.description }}</td>
               <td class="text-center">
                 <div class="action-btns">
-                  <button class="btn-icon edit" @click="openEdit(role)"><PencilLine :size="12" /></button>
-                  <button class="btn-icon delete" @click="deleteRole(role.id)"><Trash2 :size="12" /></button>
+                  <button class="btn-icon edit" @click="openEdit(role)"><PencilLine :size="14" /></button>
+                  <button class="btn-icon delete" @click="deleteRole(role.id)"><Trash2 :size="14" /></button>
                 </div>
               </td>
+            </tr>
+            <tr v-if="filteredRoles.length === 0">
+              <td colspan="4" class="text-center py-4 text-muted">Tidak ada data ditemukan</td>
             </tr>
           </tbody>
         </table>
@@ -396,7 +399,7 @@ const filteredRoles = computed(() => {
           </div>
         </div>
         <div class="modal-panel-body">
-          <div class="form-grid" style="margin-bottom: 1.5rem;">
+          <div class="form-grid">
             <div class="form-group">
               <label>Nama Hak Akses <span class="required">*</span></label>
               <input v-model="formData.role_name" type="text" class="form-control" placeholder="Contoh: Admin / Finance / Staff" />
@@ -422,7 +425,6 @@ const filteredRoles = computed(() => {
             <div class="perm-grid">
               <div v-for="mod in permissionModules" :key="mod.key" class="perm-card">
                 <div class="perm-card-header">
-                  <!-- Checkbox Modul Utama dengan atribut :disabled="isEdit" -->
                   <label class="perm-check perm-check-all" :class="{ 'disabled-check': isEdit }">
                     <input 
                       type="checkbox" 
@@ -434,7 +436,6 @@ const filteredRoles = computed(() => {
                   </label>
                 </div>
                 <div class="perm-card-body">
-                  <!-- Checkbox Sub Modul dengan atribut :disabled="isEdit" -->
                   <label v-for="perm in mod.perms" :key="perm" class="perm-check" :class="{ 'disabled-check': isEdit }">
                     <input 
                       type="checkbox" 
@@ -462,52 +463,507 @@ const filteredRoles = computed(() => {
 </template>
 
 <style scoped>
+/* GENERAL LAYOUT */
+.hak-akses-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  width: 100%;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER & ACTIONS */
+.card-header {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.card-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: #94a3b8;
+}
+
+.search-input {
+  padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+  font-size: 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  width: 220px;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* BUTTONS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-outline {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.btn-outline:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
 /* CUSTOM DROPDOWN STYLE */
 .sort-dropdown, .export-dropdown { position: relative; }
-.btn-export { display: flex; align-items: center; gap: 0.35rem; }
 .text-danger { color: #ef4444; }
 .text-success { color: #10b981; }
 
 .custom-dropdown-menu {
-  position: absolute; top: calc(100% + 0.5rem); right: 0; background-color: #ffffff;
-  border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 200px; z-index: 50; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
+  position: absolute; 
+  top: calc(100% + 0.5rem); 
+  right: 0; 
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb; 
+  border-radius: 8px; 
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 190px; 
+  z-index: 50; 
+  padding: 0.5rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.25rem;
 }
-.export-menu { min-width: 200px; }
+
 .dropdown-item {
-  display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem;
-  font-size: 0.875rem; color: #4b5563; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; 
+  color: #4b5563; 
+  cursor: pointer; 
+  border-radius: 6px; 
+  transition: all 0.2s ease;
 }
+
 .export-menu .dropdown-item { justify-content: flex-start; gap: 0.5rem; }
 .dropdown-item:hover { background-color: #f3f4f6; color: #111827; }
 .dropdown-item.active { background-color: #eff6ff; color: #2563eb; font-weight: 500; }
 .text-primary { color: #2563eb; }
 
-/* Transisi Halus untuk Dropdown */
-.fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
+/* TABLE RESPONSIVE */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
-/* CSS Bawaan */
-.hak-akses-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
-textarea.form-control { resize: vertical; min-height: 80px; }
-.perm-section { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-.perm-section-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.perm-section-icon { width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.modern-table {
+  width: 100%;
+  min-width: 650px; /* Menjaga struktur tabel tetap rapi di layar HP */
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.modern-table th {
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modern-table td {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.text-desc {
+  max-width: 300px;
+  word-wrap: break-word;
+}
+
+.action-btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  /* Tambahkan warna default di sini agar icon terlihat */
+  color: #64748b; 
+}
+
+/* Biarkan hover state tetap seperti ini */
+.btn-icon.edit:hover { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+.btn-icon.delete:hover { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
+/* TABLE FOOTER */
+.table-footer {
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.page-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+/* MODAL STYLES */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-panel {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.modal-panel-header {
+  padding: 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header-icon {
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-panel-header h3 {
+  font-size: 1.125rem; font-weight: 700; color: #0f172a; margin: 0;
+}
+
+.modal-header-sub {
+  font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;
+}
+
+.modal-panel-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-group label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-control {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.form-control:focus {
+  border-color: #2563eb;
+}
+
+.required { color: #ef4444; }
+
+/* PERMISSION SECTION */
+.perm-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.perm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.perm-section-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
 .perm-section-title { font-size: 0.8125rem; font-weight: 700; color: #1e293b; display: block; }
 .perm-section-sub { font-size: 0.6875rem; color: #94a3b8; display: block; margin-top: 0.0625rem; }
-.perm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; }
-.perm-card { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; }
+
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+
+.perm-card {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
 .perm-card:nth-child(odd) { border-right: 1px solid #f1f5f9; }
 .perm-card:nth-last-child(-n+2) { border-bottom: none; }
 .perm-card-header { margin-bottom: 0.5rem; }
 .perm-card-body { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
-.perm-check { display: inline-flex; align-items: center; gap: 0.375rem; cursor: pointer; font-size: 0.75rem; color: #475569; user-select: none; }
 
-/* Menangani styling jika checkbox disabled */
-.perm-check input[type="checkbox"] { width: 14px; height: 14px; accent-color: #3b82f6; cursor: pointer; border-radius: 3px; }
+.perm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #475569;
+  user-select: none;
+  padding: 0.2rem 0; /* Touch Target Optimization */
+}
+
+.perm-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
 .perm-check input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.6; }
 .disabled-check { cursor: not-allowed !important; opacity: 0.7; }
-
 .perm-check-all { font-weight: 600; color: #1e293b; }
 .perm-module-name { font-size: 0.8125rem; }
-</style>
+
+.modal-panel-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* FADE ANIMATION */
+.fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* ==========================================================
+   RESPONSIVE MEDIA QUERIES (MOBILE FRIENDLY ENHANCEMENTS)
+   ========================================================== */
+
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .search-box, .search-input {
+    width: 100%;
+  }
+
+  /* UBAH BAGIAN INI: Jadikan column agar menyusun ke bawah */
+  .buttons-group {
+    display: flex;
+    flex-direction: column; 
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  /* Pastikan bungkus dropdown mengambil lebar penuh */
+  .sort-dropdown, .export-dropdown {
+    width: 100%;
+  }
+
+  /* Pastikan semua tombol di dalam grup memanjang penuh dan teksnya di tengah */
+  .btn-sort, .btn-export, .btn-add {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .custom-dropdown-menu {
+    right: auto;
+    left: 0;
+    width: 100%;
+  }
+
+  .table-footer {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .perm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .perm-card:nth-child(odd) {
+    border-right: none;
+  }
+
+  .perm-card {
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+
+  .perm-card:last-child {
+    border-bottom: none !important;
+  }
+
+  .modal-panel {
+    margin: 0.5rem;
+    max-height: 95vh;
+  }
+
+  .modal-panel-footer {
+    flex-direction: column-reverse;
+  }
+
+  .modal-panel-footer .btn {
+    width: 100%;
+  }
+}
+</style>  

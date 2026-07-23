@@ -19,7 +19,6 @@ import autoTable from 'jspdf-autotable'
 const router = useRouter()
 
 // --- Helper Status Manual Khusus Finance ---
-// Anda tidak perlu menggunakan mapStatusToFrontend dari utils jika logic finance berbeda
 const translateStatus = (rawStatus) => {
   const s = (rawStatus || 'PENDING').toUpperCase()
   if (s === 'PENDING') return 'Menunggu'
@@ -254,7 +253,6 @@ const uploadShake = ref(false)
 const selectedReceiptUrl = ref('')
 const zoomLevel = ref(1)
 
-// Proses = Ubah PENDING -> APPROVED (Tanpa Bukti Transfer)
 const openProses = (item) => {
   selectedItem.value = item
   proofFile.value = null
@@ -263,7 +261,6 @@ const openProses = (item) => {
   showConfirmModal.value = true
 }
 
-// Bayar = Ubah APPROVED -> PAID (Wajib Bukti Transfer)
 const openBayar = (item) => {
   selectedItem.value = item
   proofFile.value = null
@@ -325,7 +322,6 @@ const resetZoom = () => { zoomLevel.value = 1 }
 const confirmAction = async () => {
   if (!selectedItem.value) return
 
-  // Validasi: Jika aksi bayar (isMandatory), maka harus ada file
   if (isMandatory.value && !proofFile.value) {
     uploadShake.value = true
     setTimeout(() => uploadShake.value = false, 500)
@@ -341,15 +337,12 @@ const confirmAction = async () => {
   try {
     const formData = new FormData()
     
-    // Logika pengiriman status ke API
     if (isMandatory.value) {
-       // Aksi 'Bayar': status -> PAID
        formData.append('status', 'PAID') 
        if (proofFile.value) {
          formData.append('transfer_receipt', proofFile.value)
        }
     } else {
-       // Aksi 'Proses': status -> APPROVED
        formData.append('status', 'APPROVED')
     }
 
@@ -365,7 +358,6 @@ const confirmAction = async () => {
       timer: 1500
     })
 
-    // Refresh Data & Chart
     fetchDashboardData(currentPage.value)
     fetchChartData()
   } catch (error) {
@@ -404,7 +396,6 @@ const confirmTolak = async () => {
       timer: 1500
     })
     
-    // Refresh Data
     fetchDashboardData(currentPage.value)
   } catch (error) {
     console.error(error)
@@ -506,15 +497,18 @@ const exportByDateRange = async (formatType) => {
       </div>
     </div>
 
-    <div class="stats-row">
-      <div v-for="s in stats" :key="s.label" class="stat-card" :class="{ 'card-blue': s.isBlue }">
-        <div class="stat-icon-box">
-          <Calendar v-if="s.isBlue" :size="20" />
-          <TrendingUp v-else :size="20" />
-        </div>
-        <div class="stat-info">
-          <p class="stat-label">{{ s.label }}</p>
-          <p class="stat-value">{{ s.value }}</p>
+    <!-- Stats Row (Mobile Swipeable / Responsive) -->
+    <div class="stats-row-wrapper">
+      <div class="stats-row">
+        <div v-for="s in stats" :key="s.label" class="stat-card" :class="{ 'card-blue': s.isBlue }">
+          <div class="stat-icon-box">
+            <Calendar v-if="s.isBlue" :size="20" />
+            <TrendingUp v-else :size="20" />
+          </div>
+          <div class="stat-info">
+            <p class="stat-label">{{ s.label }}</p>
+            <p class="stat-value">{{ s.value }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -661,13 +655,12 @@ const exportByDateRange = async (formatType) => {
       </div>
     </div>
 
+    <!-- Modals -->
     <div v-if="showConfirmModal" class="modal-backdrop" @click.self="showConfirmModal = false">
       <div class="modal confirm-modal">
         <div class="modal-header">
           <h3 class="modal-title">{{ isMandatory ? 'Proses Pembayaran?' : 'Setujui Pengajuan?' }}</h3>
-          <button class="close-btn" @click="showConfirmModal = false">
-            <X :size="18" />
-          </button>
+          <button class="close-btn" @click="showConfirmModal = false"><X :size="18" /></button>
         </div>
         <div class="modal-body">
           <p class="confirm-msg">
@@ -857,10 +850,11 @@ const exportByDateRange = async (formatType) => {
 .qa-primary:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3); transform: translateY(-1px); }
 
 /* --- STATS CARD --- */
-.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; max-width: 600px; }
+.stats-row-wrapper { width: 100%; }
+.stats-row { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 1.5rem; max-width: 600px; }
 .stat-card { background: white; border-radius: 16px; padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -2px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; }
 .card-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2); }
-.stat-icon-box { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; }
+.stat-icon-box { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .card-blue .stat-icon-box { background: rgba(255,255,255,0.2); color: white; }
 .stat-card:not(.card-blue) .stat-icon-box { background: #fef3c7; color: #f59e0b; }
 .stat-label { font-size: 0.7rem; font-weight: 600; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -871,7 +865,6 @@ const exportByDateRange = async (formatType) => {
 
 /* --- GRID LAYOUT --- */
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.2fr); gap: 1.5rem; flex: 1; min-height: 0; }
-@media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; overflow-y: auto; } }
 
 .left-column { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
 .card { background: white; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -910,7 +903,7 @@ const exportByDateRange = async (formatType) => {
 .history-row { padding: 0.75rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f8fafc; transition: background 0.2s; cursor: default; }
 .history-row:hover { background: #fcfdfe; }
 .h-left { display: flex; align-items: center; gap: 0.875rem; }
-.avatar-circle { width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; border: 1px solid #dbeafe; }
+.avatar-circle { width: 36px; height: 36px; border-radius: 50%; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; border: 1px solid #dbeafe; flex-shrink: 0; }
 .h-info { display: flex; flex-direction: column; gap: 0.125rem; }
 .h-name { font-size: 0.85rem; font-weight: 700; color: #1e293b; }
 .h-meta { font-size: 0.7rem; color: #64748b; font-weight: 500; }
@@ -918,6 +911,7 @@ const exportByDateRange = async (formatType) => {
 .h-amount { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
 
 /* ACTION BUTTONS & PILLS */
+.action-row { display: flex; gap: 0.35rem; align-items: center; }
 .btn-action { border-radius: 6px; font-size: 0.65rem; font-weight: 700; padding: 0.25rem 0.6rem; cursor: pointer; border: none; min-width: 60px; transition: all 0.2s; }
 .btn-action.tolak { background: #ef4444; color: white; }
 .btn-action.tolak-ghost { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
@@ -953,27 +947,98 @@ const exportByDateRange = async (formatType) => {
 .btn-excel { background: #10b981; }
 .btn-excel:hover:not(:disabled) { background: #059669; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25); }
 .btn-download:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* Skeleton Loader */
 .skeleton-box {
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: loadingSkeleton 1.5s infinite;
 }
-
-.skeleton-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.skeleton-text {
-  height: 12px;
-  border-radius: 4px;
-}
-
+.skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-text { height: 12px; border-radius: 4px; }
 @keyframes loadingSkeleton {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 1024px) {
+  .finance-dasbor {
+    height: auto;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .list-card {
+    min-height: 450px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Scroll horizontal pada kartu statistik di HP */
+  .stats-row-wrapper {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .stats-row-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+  .stats-row {
+    display: flex;
+    width: max-content;
+    gap: 1rem;
+  }
+  .stat-card {
+    min-width: 240px;
+  }
+
+  /* Rapikan Header Kartu Grafik & Filter */
+  .card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .chart-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Rapikan Baris Riwayat di HP */
+  .history-row {
+    padding: 0.75rem 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .h-right {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f8fafc;
+    padding-top: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .qa-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 </style>

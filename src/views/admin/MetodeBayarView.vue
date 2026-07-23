@@ -297,7 +297,7 @@ const filteredMethods = computed(() => {
           </div>
 
           <!-- EXPORT DROPDOWN -->
-          <div class="export-dropdown" style="position: relative;">
+          <div class="export-dropdown">
             <button class="btn btn-outline btn-export" @click="showExportMenu = !showExportMenu">
               <Download :size="14" /> Export <ChevronDown :size="12" />
             </button>
@@ -326,7 +326,7 @@ const filteredMethods = computed(() => {
               <th>BANK / E-WALLET</th>
               <th>NAMA LAYANAN</th>
               <th>KODE LAYANAN</th>
-              <th>STATUS</th>
+              <th class="text-center">STATUS</th>
               <th width="140" class="text-center">AKSI</th>
             </tr>
           </thead>
@@ -336,23 +336,27 @@ const filteredMethods = computed(() => {
               <td class="font-semibold">{{ m.name }}</td>
               <td class="text-muted font-mono">{{ m.code }}</td>
               
-              <td>
+              <td class="text-center">
                 <span class="status-badge" :class="m.is_active ? 'active' : 'inactive'">
                   {{ m.is_active ? 'Aktif' : 'Tidak Aktif' }}
                 </span>
               </td>
               
               <td class="text-center">
-                <button 
-                  class="btn btn-xs" 
-                  :class="m.is_active ? 'btn-danger-outline' : 'btn-success'"
-                  @click="toggleStatus(m.id)" 
-                  style="margin-right: 0.25rem;"
-                >
-                  {{ m.is_active ? 'Non-Aktifkan' : 'Aktivasi' }}
-                </button>
-                <button class="btn btn-xs btn-primary-outline" @click="openEdit(m)">Edit</button>
+                <div class="action-btns">
+                  <button 
+                    class="btn btn-xs" 
+                    :class="m.is_active ? 'btn-danger-outline' : 'btn-success'"
+                    @click="toggleStatus(m.id)" 
+                  >
+                    {{ m.is_active ? 'Non-Aktifkan' : 'Aktivasi' }}
+                  </button>
+                  <button class="btn btn-xs btn-primary-outline" @click="openEdit(m)">Edit</button>
+                </div>
               </td>
+            </tr>
+            <tr v-if="filteredMethods.length === 0">
+              <td colspan="5" class="text-center py-4 text-muted">Tidak ada metode bayar ditemukan.</td>
             </tr>
           </tbody>
         </table>
@@ -385,7 +389,8 @@ const filteredMethods = computed(() => {
             <p class="modal-header-sub">{{ isEdit ? 'Perbarui informasi metode pembayaran' : 'Tambahkan metode pembayaran baru' }}</p>
           </div>
         </div>
-        <div class="modal-panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem;">
+        
+        <div class="modal-panel-body modal-grid">
           <div class="form-group">
             <label>Tipe Layanan <span class="required">*</span></label>
             <select v-model="formData.provider_type" class="form-control" :disabled="isSaving">
@@ -405,8 +410,9 @@ const filteredMethods = computed(() => {
               placeholder="Contoh: Bank Central Asia / GoPay Indonesia" />
           </div>
         </div>
+        
         <div class="modal-panel-footer">
-          <button class="btn btn-outline" @click="closeAdd" :disabled="isSaving">Batal</button>
+          <button class="btn btn-outline btn-cancel" @click="closeAdd" :disabled="isSaving">Batal</button>
           <button class="btn btn-primary btn-save" @click="submitAdd" :disabled="isSaving">
             <component :is="isEdit ? PencilLine : Plus" :size="14" />
             {{ isSaving ? 'Memproses...' : (isEdit ? 'Simpan Perubahan' : 'Tambah Metode Bayar') }}
@@ -418,125 +424,184 @@ const filteredMethods = computed(() => {
 </template>
 
 <style scoped>
-/* CUSTOM DROPDOWN STYLE */
-.sort-dropdown, .export-dropdown {
-  position: relative;
-}
+/* BASE STYLES */
+.metode-bayar-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
 
+/* KARTU UTAMA */
+.card { background: white; border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.main-card { flex: 1; }
+
+.card-header { padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; gap: 1rem; flex-wrap: wrap;}
+.card-header-title { font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0;}
+
+/* ACTION HEADER */
+.header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.search-box { position: relative; min-width: 220px;}
+.search-input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.8125rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;}
+.search-input:focus { border-color: #3b82f6; }
+.search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+
+.btn { padding: 0.5rem 0.875rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; transition: all 0.2s; border: 1px solid transparent; font-family: inherit;}
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-outline { background: white; border-color: #cbd5e1; color: #475569; }
+.btn-outline:hover { background: #f8fafc; color: #0f172a; border-color: #94a3b8; }
+
+/* TABLE */
+.table-responsive { overflow-y: auto; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch;}
+.modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+.modern-table th { padding: 0.875rem 1.25rem; background: #f8fafc; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.modern-table td { padding: 1rem 1.25rem; font-size: 0.875rem; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap;}
+.modern-table tbody tr:hover { background: #f8fafc; }
+
+.text-muted { color: #64748b; }
+.text-xs { font-size: 0.7rem; }
+.font-semibold { font-weight: 600; color: #1e293b; }
+.font-bold { font-weight: 700; }
+.font-mono { font-family: monospace; font-size: 0.8125rem;}
+.text-center { text-align: center !important; }
+.py-4 { padding-top: 1rem; padding-bottom: 1rem;}
+
+.status-badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700; white-space: nowrap;}
+.status-badge.active { background: #dcfce7; color: #166534; }
+.status-badge.inactive { background: #f1f5f9; color: #64748b; }
+
+/* AKSI TABEL (Buttons inside table) */
+.action-btns { display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;}
+.btn-xs { padding: 0.35rem 0.75rem; font-size: 0.7rem; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap;}
+.btn-success { background: #22c55e; color: white; border: 1px solid #22c55e; }
+.btn-success:hover { background: #16a34a; }
+.btn-danger-outline { background: white; color: #ef4444; border: 1px solid #fecaca; }
+.btn-danger-outline:hover { background: #fef2f2; }
+.btn-primary-outline { background: white; color: #3b82f6; border: 1px solid #bfdbfe; }
+.btn-primary-outline:hover { background: #eff6ff; border-color: #93c5fd; }
+
+/* PAGINASI & FOOTER */
+.table-footer { padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+.pagination { display: flex; gap: 0.25rem; align-items: center; }
+.page-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;}
+.page-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+.page-btn:hover:not(.active) { background: #f8fafc; color: #0f172a;}
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(2px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal-panel { background: white; border-radius: 12px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.modal-panel-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 1rem; background: #f8fafc; border-radius: 12px 12px 0 0;}
+.modal-header-icon { width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+.modal-panel-header h3 { margin: 0; font-size: 1.125rem; font-weight: 700; color: #1e293b; }
+.modal-header-sub { margin: 0.25rem 0 0 0; font-size: 0.75rem; color: #64748b; }
+
+.modal-panel-body { padding: 1.5rem; overflow-y: auto; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.col-span-2 { grid-column: span 2; }
+
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: #475569; }
+.required { color: #ef4444; }
+.form-control { width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; font-family: inherit; box-sizing: border-box;}
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+.modal-panel-footer { padding: 1.25rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 0.75rem; background: #f8fafc; border-radius: 0 0 12px 12px;}
+
+/* CUSTOM DROPDOWN STYLE */
+.sort-dropdown, .export-dropdown { position: relative; }
 .btn-export { display: flex; align-items: center; gap: 0.35rem; }
 .text-danger { color: #ef4444; }
 .text-success { color: #10b981; }
 
 .custom-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 220px;
-  z-index: 50;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  position: absolute; top: calc(100% + 0.5rem); right: 0; background-color: #ffffff;
+  border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 220px; z-index: 50; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
 }
-
-.export-menu {
-  min-width: 200px;
-}
-
+.export-menu { min-width: 200px; }
 .dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #4b5563;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; color: #4b5563; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
 }
-.export-menu .dropdown-item {
-  justify-content: flex-start;
-  gap: 0.5rem;
-}
+.export-menu .dropdown-item { justify-content: flex-start; }
+.dropdown-item:hover { background-color: #f3f4f6; color: #111827; }
+.dropdown-item.active { background-color: #eff6ff; color: #2563eb; font-weight: 500; }
+.text-primary { color: #2563eb; }
 
-.dropdown-item:hover {
-  background-color: #f3f4f6;
-  color: #111827;
-}
+/* TRANSISI DROPDOWN */
+.fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
 
-.dropdown-item.active {
-  background-color: #eff6ff;
-  color: #2563eb;
-  font-weight: 500;
-}
 
-.text-primary {
-  color: #2563eb;
-}
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
 
-/* Transisi Halus untuk Dropdown */
-.fade-down-enter-active,
-.fade-down-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
+@media (max-width: 768px) {
+  /* Hapus limit height agar native body scroll bisa berfungsi di mobile */
+  .metode-bayar-page {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 2rem;
+  }
 
-.fade-down-enter-from,
-.fade-down-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
+  .main-card {
+    min-height: 400px;
+  }
 
-/* CSS Asli yang Sudah Ada */
-.metode-bayar-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  flex: 1;
-  height: 100%;
-  overflow: hidden;
-}
+  /* Header Stacking: Semua tombol, search, dropdow, memanjang ke bawah */
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
 
-.btn-xs {
-  padding: 0.3rem 0.75rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.625rem;
+  }
 
-.btn-success {
-  background: #22c55e;
-  color: white;
-  border: 1px solid #22c55e;
-}
+  .search-box, .sort-dropdown, .export-dropdown, .btn-sort, .btn-export, .btn-add {
+    width: 100%;
+    justify-content: center; /* Label ke tengah pada mobile */
+  }
 
-.btn-success:hover {
-  background: #16a34a;
-}
+  /* Dropdown agar mengambil lebar penuh saat diklik di HP */
+  .custom-dropdown-menu {
+    width: 100%;
+    min-width: 100%;
+  }
 
-.btn-danger-outline {
-  background: white;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-}
+  /* Modal Form */
+  .modal-panel {
+    max-height: 95vh;
+  }
 
-.btn-danger-outline:hover {
-  background: #fef2f2;
-}
+  /* Ubah Form di dalam Modal menjadi 1 kolom (atas-bawah) */
+  .modal-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 
-.btn-primary-outline {
-  background: white;
-  color: #3b82f6;
-  border: 1px solid #bfdbfe;
-}
+  .col-span-2 {
+    grid-column: span 1;
+  }
 
-.btn-primary-outline:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  /* Modal Footer: Batal diletakkan di bawah Simpan */
+  .modal-panel-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .btn-cancel, .btn-save {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+  }
+
+  /* Table Footer (Pagination) jadi di tengah / tumpuk vertikal */
+  .table-footer {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+    padding: 1rem;
+  }
 }
 </style>

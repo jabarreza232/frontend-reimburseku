@@ -52,7 +52,6 @@ const monthList = [
 ]
 
 const setFilterMonth = (val) => {
-  // Format menjadi YYYY-MM
   filterInputMonth.value = `${filterTempYear.value}-${String(val).padStart(2, '0')}`
 }
 
@@ -74,6 +73,11 @@ const selectedReceiptUrl = ref('')
 const previewTitle = ref('Bukti Transfer')
 const zoomLevel = ref(1)
 
+const panX = ref(0)
+const panY = ref(0)
+const isDragging = ref(false)
+const startX = ref(0)
+const startY = ref(0)
 
 // ==========================================
 // 2. HELPER FUNCTIONS
@@ -216,7 +220,7 @@ const resetFilter = () => {
   filterInputMonth.value = ''
   filterInputStart.value = ''
   filterInputEnd.value = ''
-  filterTempYear.value = new Date().getFullYear() // Reset tahun
+  filterTempYear.value = new Date().getFullYear()
   
   showFilterModal.value = false
   fetchReimbursements(1)
@@ -292,14 +296,11 @@ const openReceipt = (item) => {
   if (item.receiptUrl) {
     selectedReceiptUrl.value = item.receiptUrl
     previewTitle.value = 'Bukti Transfer'
-    zoomLevel.value = 1 
+    resetZoom()
     showReceiptModal.value = true
   } else {
     Swal.fire({
-      icon: 'info',
-      title: 'Tidak Ada Bukti',
-      text: 'Bukti transfer belum diunggah atau tidak ditemukan.',
-      confirmButtonColor: '#3b82f6'
+      icon: 'info', title: 'Tidak Ada Bukti', text: 'Bukti transfer belum diunggah atau tidak ditemukan.', confirmButtonColor: '#3b82f6'
     })
   }
 }
@@ -308,14 +309,11 @@ const openFilePreview = (item) => {
   if (item.fileUrl) {
     selectedReceiptUrl.value = item.fileUrl
     previewTitle.value = 'File Pendukung'
-    zoomLevel.value = 1 
+    resetZoom()
     showReceiptModal.value = true
   } else {
     Swal.fire({
-      icon: 'info',
-      title: 'Tidak Ada File',
-      text: 'File pendukung belum diunggah atau tidak ditemukan.',
-      confirmButtonColor: '#3b82f6'
+      icon: 'info', title: 'Tidak Ada File', text: 'File pendukung belum diunggah atau tidak ditemukan.', confirmButtonColor: '#3b82f6'
     })
   }
 }
@@ -323,12 +321,42 @@ const openFilePreview = (item) => {
 const closeReceipt = () => {
   showReceiptModal.value = false
   selectedReceiptUrl.value = ''
-  zoomLevel.value = 1
+  resetZoom()
 }
 
+// --- FUNGSI ZOOM & PAN ---
 const zoomIn = () => { if (zoomLevel.value < 3) zoomLevel.value += 0.25 }
 const zoomOut = () => { if (zoomLevel.value > 0.5) zoomLevel.value -= 0.25 }
-const resetZoom = () => { zoomLevel.value = 1 }
+const resetZoom = () => { zoomLevel.value = 1; panX.value = 0; panY.value = 0; }
+
+const onMouseDown = (e) => {
+  isDragging.value = true
+  startX.value = e.clientX - panX.value
+  startY.value = e.clientY - panY.value
+}
+const onMouseMove = (e) => {
+  if (!isDragging.value) return
+  panX.value = e.clientX - startX.value
+  panY.value = e.clientY - startY.value
+}
+const onMouseUp = () => { isDragging.value = false }
+
+const onTouchStart = (e) => {
+  if (e.touches.length === 1) {
+    isDragging.value = true
+    startX.value = e.touches[0].clientX - panX.value
+    startY.value = e.touches[0].clientY - panY.value
+  }
+}
+const onTouchMove = (e) => {
+  if (!isDragging.value) return
+  if (e.touches.length === 1) {
+    panX.value = e.touches[0].clientX - startX.value
+    panY.value = e.touches[0].clientY - startY.value
+  }
+}
+const onTouchEnd = () => { isDragging.value = false }
+
 
 // ==========================================
 // 7. API SUBMIT HANDLERS
@@ -340,24 +368,15 @@ const confirmAction = async () => {
   if (isMandatory.value && !proofFile.value) {
     uploadShake.value = true
     setTimeout(() => uploadShake.value = false, 500)
-    Swal.fire({
-      icon: 'warning',
-      title: 'Perhatian',
-      text: 'Mohon unggah bukti transfer (PNG/JPG/PDF) terlebih dahulu!',
-      confirmButtonColor: '#3b82f6'
-    })
+    Swal.fire({ icon: 'warning', title: 'Perhatian', text: 'Mohon unggah bukti transfer (PNG/JPG/PDF) terlebih dahulu!', confirmButtonColor: '#3b82f6' })
     return
   }
 
   try {
     const formData = new FormData()
-    // Jika isMandatory (membayar), kirim status PAID, jika tidak (hanya menyetujui), kirim APPROVED
     const targetStatus = isMandatory.value ? 'PAID' : 'APPROVED'
     formData.append('status', targetStatus)
-    
-    if (proofFile.value) {
-      formData.append('transfer_receipt', proofFile.value)
-    }
+    if (proofFile.value) formData.append('transfer_receipt', proofFile.value)
 
     await ApiService.actionApproveOrReject(selectedItem.value.approvalId, formData)
 
@@ -366,27 +385,17 @@ const confirmAction = async () => {
     showConfirmModal.value = false
     
     Swal.fire({
-      icon: 'success',
-      title: isPaid ? 'Berhasil' : 'Disetujui',
-      text: isPaid ? 'Reimbursement berhasil dibayar!' : 'Reimbursement berhasil disetujui.',
-      showConfirmButton: false,
-      timer: 1500
+      icon: 'success', title: isPaid ? 'Berhasil' : 'Disetujui', text: isPaid ? 'Reimbursement berhasil dibayar!' : 'Reimbursement berhasil disetujui.', showConfirmButton: false, timer: 1500
     })
 
     fetchReimbursements(currentPage.value)
   } catch (error) {
-    console.error(error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error.response?.data?.message || 'Gagal memproses pengajuan'
-    })
+    Swal.fire({ icon: 'error', title: 'Gagal', text: error.response?.data?.message || 'Gagal memproses pengajuan' })
   }
 }
 
 const confirmTolak = async () => {
   if (!selectedItem.value) return
-
   if (!rejectReason.value.trim()) {
     rejectError.value = true
     setTimeout(() => rejectError.value = false, 500)
@@ -402,42 +411,27 @@ const confirmTolak = async () => {
 
     selectedItem.value.status = 'ditolak'
     showRejectModal.value = false
-    
-    Swal.fire({
-      icon: 'success',
-      title: 'Ditolak',
-      text: 'Reimbursement telah ditolak.',
-      showConfirmButton: false,
-      timer: 1500
-    })
+    Swal.fire({ icon: 'success', title: 'Ditolak', text: 'Reimbursement telah ditolak.', showConfirmButton: false, timer: 1500 })
     
     fetchReimbursements(currentPage.value)
   } catch (error) {
-    console.error(error)
-    Swal.fire({
-      icon: 'error',
-      title: 'Gagal',
-      text: error.response?.data?.message || 'Gagal menolak pengajuan'
-    })
+    Swal.fire({ icon: 'error', title: 'Gagal', text: error.response?.data?.message || 'Gagal menolak pengajuan' })
   }
 }
 
 // ==========================================
 // 8. LIFECYCLE HOOKS
 // ==========================================
-onMounted(() => {
-  fetchReimbursements(1)
-})
+onMounted(() => fetchReimbursements(1))
 </script>
 
 <template>
   <div class="finance-reimburse">
     
-
     <div class="card main-card">
       <div class="card-header">
         <div class="header-left">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             <h2 class="card-header-title">Daftar Reimburse</h2>
             <span v-if="activeFilterLabel !== 'Semua Waktu'" class="filter-badge">{{ activeFilterLabel }}</span>
           </div>
@@ -448,11 +442,9 @@ onMounted(() => {
             <Search :size="14" class="search-icon" />
             <input v-model="searchQuery" type="text" placeholder="Cari nama / keterangan..." class="search-input" />
           </div>
-          
           <button class="btn-filter-icon" @click="showFilterModal = true" title="Filter Data">
             <Filter :size="16" />
           </button>
-          
           <div class="count-badge">{{ pendingCount }} Menunggu</div>
         </div>
       </div>
@@ -496,7 +488,6 @@ onMounted(() => {
               </td>
             </tr>
           </tbody>
-
           <tbody v-else-if="filteredItems.length === 0">
             <tr>
               <td colspan="8" class="text-center empty-state">
@@ -527,8 +518,7 @@ onMounted(() => {
               <td class="font-bold">{{ item.amount }}</td>
               <td>
                 <span class="status-pill" :class="item.status">
-                  {{ item.status === 'disetujui' ? 'Disetujui' : item.status.charAt(0).toUpperCase() +
-                    item.status.slice(1) }}
+                  {{ item.status === 'disetujui' ? 'Disetujui' : item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
                 </span>
               </td>
               <td class="text-center">
@@ -562,12 +552,9 @@ onMounted(() => {
           <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
             <ChevronLeft :size="12" />
           </button>
-
-          <button v-for="page in lastPage" :key="page" class="page-btn" :class="{ active: currentPage === page }"
-            @click="changePage(page)">
+          <button v-for="page in lastPage" :key="page" class="page-btn" :class="{ active: currentPage === page }" @click="changePage(page)">
             {{ page }}
           </button>
-
           <button class="page-btn" :disabled="currentPage === lastPage" @click="changePage(currentPage + 1)">
             <ChevronRight :size="12" />
           </button>
@@ -575,6 +562,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- MODAL FILTER -->
     <div v-if="showFilterModal" class="modal-overlay" @click.self="showFilterModal = false">
       <div class="modal-panel filter-modal">
         <div class="modal-panel-header">
@@ -606,13 +594,7 @@ onMounted(() => {
                 <button class="year-btn" @click="filterTempYear++"><ChevronRight :size="16"/></button>
               </div>
               <div class="month-grid">
-                <button 
-                  v-for="m in monthList" 
-                  :key="m.val"
-                  class="month-btn"
-                  :class="{ 'active': isMonthActive(m.val) }"
-                  @click="setFilterMonth(m.val)"
-                >
+                <button v-for="m in monthList" :key="m.val" class="month-btn" :class="{ 'active': isMonthActive(m.val) }" @click="setFilterMonth(m.val)">
                   {{ m.label }}
                 </button>
               </div>
@@ -638,18 +620,16 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- MODAL CONFIRM (PROSES / BAYAR) -->
     <div v-if="showConfirmModal" class="modal-overlay" @click.self="showConfirmModal = false">
       <div class="modal-panel confirm-modal">
         <div class="modal-panel-header">
-          <h3 class="modal-title">Proses Pembayaran?</h3>
-          <button class="close-btn" @click="showConfirmModal = false">
-            <X :size="18" />
-          </button>
+          <h3 class="modal-title">{{ isMandatory ? 'Proses Pembayaran?' : 'Setujui Pengajuan?' }}</h3>
+          <button class="close-btn" @click="showConfirmModal = false"><X :size="18" /></button>
         </div>
         <div class="modal-panel-body">
           <p class="confirm-msg">
-            Anda akan menyetujui pembayaran sebesar <strong>{{ selectedItem?.amount }}</strong> kepada <strong>{{
-              selectedItem?.name }}</strong>.
+            Anda akan menyetujui pembayaran sebesar <strong>{{ selectedItem?.amount }}</strong> kepada <strong>{{ selectedItem?.name }}</strong>.
           </p>
 
           <div class="upload-section">
@@ -668,68 +648,76 @@ onMounted(() => {
         </div>
         <div class="modal-panel-footer">
           <button class="btn-modal batal" @click="showConfirmModal = false">Batal</button>
-          <button class="btn-modal main-btn"
-            :class="{ 'pay': proofFile || isMandatory, 'approve': !proofFile && !isMandatory }"
-            :disabled="isMandatory && !proofFile" @click="confirmAction">
+          <button class="btn-modal main-btn" :class="{ 'pay': proofFile || isMandatory, 'approve': !proofFile && !isMandatory }" :disabled="isMandatory && !proofFile" @click="confirmAction">
             {{ (proofFile || isMandatory) ? 'Bayar' : 'Setujui' }}
           </button>
         </div>
       </div>
     </div>
 
+    <!-- MODAL VIEW RECEIPT / FILE -->
     <div v-if="showReceiptModal" class="modal-overlay" @click.self="closeReceipt">
       <div class="modal receipt-modal">
         <div class="modal-header">
           <h3 class="modal-title">{{ previewTitle }}</h3>
 
           <div class="zoom-controls">
-            <button class="zoom-btn" @click="zoomOut" title="Zoom Out">
-              <ZoomOut :size="14" />
-            </button>
+            <button class="zoom-btn" @click="zoomOut" title="Zoom Out"><ZoomOut :size="14" /></button>
             <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button class="zoom-btn" @click="zoomIn" title="Zoom In">
-              <ZoomIn :size="14" />
-            </button>
+            <button class="zoom-btn" @click="zoomIn" title="Zoom In"><ZoomIn :size="14" /></button>
             <div class="divider-vertical"></div>
-            <button class="zoom-btn reset" @click="resetZoom" title="Reset Zoom">
-              <RotateCcw :size="14" />
-            </button>
+            <button class="zoom-btn reset" @click="resetZoom" title="Reset Zoom"><RotateCcw :size="14" /></button>
           </div>
-
-          <button class="close-btn" @click="closeReceipt">
-            <X :size="18" />
-          </button>
+          <button class="close-btn" @click="closeReceipt"><X :size="18" /></button>
         </div>
 
         <div class="modal-body image-viewer-body">
-          <div class="image-container">
-            <img :src="selectedReceiptUrl" alt="Bukti Transfer" class="zoomable-image"
-              :style="{ transform: `scale(${zoomLevel})` }" />
+          <div class="image-container"
+            @mousedown.prevent="onMouseDown"
+            @mousemove.prevent="onMouseMove"
+            @mouseup="onMouseUp"
+            @mouseleave="onMouseUp"
+            @touchstart.prevent="onTouchStart"
+            @touchmove.prevent="onTouchMove"
+            @touchend="onTouchEnd"
+            :class="{ 'is-dragging': isDragging }"
+          >
+            <iframe
+              v-if="selectedReceiptUrl && selectedReceiptUrl.toLowerCase().endsWith('.pdf')"
+              :src="selectedReceiptUrl"
+              class="pdf-viewer"
+              style="width: 100%; height: 60vh; border: none; border-radius: 8px;"
+            ></iframe>
+            <img 
+              v-else
+              :src="selectedReceiptUrl" 
+              alt="Pratinjau File" 
+              class="zoomable-image"
+              :style="{ transform: `translate(${panX}px, ${panY}px) scale(${zoomLevel})` }" 
+              draggable="false"
+            />
           </div>
         </div>
       </div>
     </div>
 
+    <!-- MODAL REJECT -->
     <div v-if="showRejectModal" class="modal-overlay" @click.self="showRejectModal = false">
       <div class="modal-panel confirm-modal">
         <div class="modal-panel-header">
           <h3 class="modal-title text-red">Tolak Pengajuan?</h3>
-          <button class="close-btn" @click="showRejectModal = false">
-            <X :size="18" />
-          </button>
+          <button class="close-btn" @click="showRejectModal = false"><X :size="18" /></button>
         </div>
         <div class="modal-panel-body">
           <p class="confirm-msg">
-            Anda akan menolak pengajuan sebesar <strong>{{ selectedItem?.amount }}</strong> dari <strong>{{
-              selectedItem?.name }}</strong>.
+            Anda akan menolak pengajuan sebesar <strong>{{ selectedItem?.amount }}</strong> dari <strong>{{ selectedItem?.name }}</strong>.
           </p>
 
           <div class="upload-section">
             <label class="upload-label">
               Alasan Penolakan <span class="text-red">*</span>
             </label>
-            <textarea v-model="rejectReason" class="reject-textarea" :class="{ 'shake error-border': rejectError }"
-              placeholder="Contoh: Nota tidak jelas / nominal tidak sesuai..." rows="3"></textarea>
+            <textarea v-model="rejectReason" class="reject-textarea" :class="{ 'shake error-border': rejectError }" placeholder="Contoh: Nota tidak jelas / nominal tidak sesuai..." rows="3"></textarea>
             <span v-if="rejectError" class="error-text">Alasan penolakan wajib diisi!</span>
           </div>
         </div>
@@ -740,26 +728,19 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- MODAL VIEW REASON -->
     <div v-if="showReasonModal" class="modal-overlay" @click.self="showReasonModal = false">
       <div class="modal-panel confirm-modal">
         <div class="modal-panel-header">
           <h3 class="modal-title text-red">Alasan Penolakan</h3>
-          <button class="close-btn" @click="showReasonModal = false">
-            <X :size="18" />
-          </button>
+          <button class="close-btn" @click="showReasonModal = false"><X :size="18" /></button>
         </div>
         <div class="modal-panel-body">
           <p class="confirm-msg">
             Pengajuan dari <strong>{{ selectedItem?.name }}</strong> sebesar <strong>{{ selectedItem?.amount }}</strong> ditolak dengan alasan:
           </p>
           <div class="upload-section">
-            <textarea 
-              class="reject-textarea" 
-              rows="4" 
-              readonly
-              :value="selectedItem?.rejectionReason"
-              style="background-color: #f8fafc; cursor: not-allowed; color: #475569;"
-            ></textarea>
+            <textarea class="reject-textarea" rows="4" readonly :value="selectedItem?.rejectionReason" style="background-color: #f8fafc; cursor: not-allowed; color: #475569;"></textarea>
           </div>
         </div>
         <div class="modal-panel-footer" style="justify-content: center;">
@@ -783,16 +764,28 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* BASE STYLES */
 .finance-reimburse {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   background: #f8fafc;
-  height: 100%;
+  height: calc(100vh - 64px - 2rem);
   overflow: hidden;
 }
 
-.card.main-card { background: white; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.card.main-card { 
+  background: white; 
+  border-radius: 12px; 
+  border: 1px solid #f1f5f9; 
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); 
+  display: flex; 
+  flex-direction: column; 
+  flex: 1; 
+  min-height: 0; 
+  overflow: hidden; 
+}
+
 .card-header-sub { font-size: 0.65rem; color: #94a3b8; margin-top: 0.125rem; font-weight: 500; }
 
 .btn-filter-icon {
@@ -804,14 +797,21 @@ onMounted(() => {
 .filter-badge { font-size: 0.65rem; background: #eff6ff; color: #3b82f6; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; border: 1px solid #dbeafe; }
 .count-badge { background: #fffbeb; color: #f59e0b; font-size: 0.65rem; font-weight: 700; padding: 0.4rem 0.875rem; border-radius: 8px; border: 1px solid #fef3c7; }
 
-.table-responsive { overflow-y: auto; overflow-x: auto; flex: 1; }
+/* TABLE */
+.table-responsive { 
+  overflow-y: auto; 
+  overflow-x: auto; 
+  flex: 1; 
+  -webkit-overflow-scrolling: touch;
+}
 
 .text-dark { color: #1e293b; font-weight: 500; }
 
 .btn-file { background: #eff6ff; color: #3b82f6; border: 1px solid #dbeafe; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; gap: 0.25rem; cursor: pointer; text-decoration: none; }
 
+/* ACTION BUTTONS */
 .action-row { display: flex; justify-content: center; gap: 0.5rem; }
-.btn-action { border-radius: 6px; font-size: 0.7rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; border: none; min-width: 64px; transition: all 0.2s; }
+.btn-action { border-radius: 6px; font-size: 0.7rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; border: none; min-width: 64px; transition: all 0.2s; text-align: center; }
 .btn-action.tolak { background: #ef4444; color: white; }
 .btn-action.tolak-ghost { background: #fef2f2; color: #ef4444; font-weight: 600; border: 1px solid #fecaca; }
 .btn-action.tolak-ghost:hover { background: #fee2e2; }
@@ -820,11 +820,11 @@ onMounted(() => {
 .btn-action.bukti-ghost { background: #f1f5f9; color: #64748b; font-weight: 600; border: 1px solid #e2e8f0; }
 
 /* MODALS */
-.modal { max-width: 380px; }
-.filter-modal { max-width: 440px; }
+.modal { max-width: 380px; width: 100%; }
+.filter-modal { max-width: 440px; width: 100%; }
 .modal-header { border-radius: 12px 12px 0 0; }
 .confirm-msg { font-size: 0.75rem; margin-bottom: 1rem; }
-.footer-spaced { justify-content: space-between; }
+.footer-spaced { justify-content: space-between; display: flex; gap: 0.5rem; }
 
 /* Filter Modal Inputs */
 .form-group { margin-bottom: 1.25rem; }
@@ -840,6 +840,23 @@ onMounted(() => {
 .btn-primary-modal { background: #3b82f6; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .btn-primary-modal:hover { background: #2563eb; }
 
+/* IMAGE VIEWER */
+.image-container {
+  width: 100%; 
+  height: 100%;
+  display: flex; 
+  justify-content: center; 
+  align-items: center;
+  overflow: hidden;
+  touch-action: none; /* Mencegah scroll native saat drag */
+}
+.zoomable-image {
+  max-width: 90vw; 
+  max-height: 85vh;
+  object-fit: contain;
+  transition: transform 0.1s ease-out;
+  transform-origin: center center;
+}
 
 /* Skeleton Loader */
 .skeleton-box {
@@ -848,20 +865,84 @@ onMounted(() => {
   animation: loadingSkeleton 1.5s infinite;
 }
 
-.skeleton-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.skeleton-text {
-  height: 12px;
-  border-radius: 4px;
-}
+.skeleton-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-text { height: 12px; border-radius: 4px; }
 
 @keyframes loadingSkeleton {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 768px) {
+  /* Hapus batasan tinggi agar halaman scroll natural di mobile */
+  .finance-reimburse {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Header Card */
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  /* Action Buttons di Header (Search & Filter) */
+  .header-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  /* Pencarian ambil lebar penuh (di atas) */
+  .search-box {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .btn-filter-icon {
+    width: 100%;
+    height: 38px; /* Sedikit diperbesar agar enak ditekan */
+  }
+
+  /* Aksi Tabel di Mobile (susun vertikal agar tombol membesar) */
+  .action-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .btn-action {
+    width: 100%;
+    min-height: 32px;
+  }
+
+  /* Modals */
+  .modal-panel, .modal {
+    width: 90%;
+    max-width: 100%;
+    margin: 1rem;
+  }
+
+  /* Form rentang tanggal stack ke bawah */
+  .form-row {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* Tombol footer modal stack ke bawah */
+  .footer-spaced {
+    flex-direction: column-reverse; /* Batal di bawah, Aksi utama di atas */
+    gap: 0.75rem;
+  }
+  .footer-spaced .btn-cancel,
+  .footer-spaced .main-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem;
+  }
 }
 </style>

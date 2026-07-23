@@ -439,7 +439,7 @@ const filteredEmployees = computed(() => {
           </div>
         </div>
         
-        <div class="modal-panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem;">
+        <div class="modal-panel-body modal-grid">
           <div class="form-group">
             <label>Nama Lengkap <span class="required">*</span></label>
             <input v-model="formData.name" type="text" class="form-control" placeholder="Nama lengkap karyawan" />
@@ -506,53 +506,103 @@ const filteredEmployees = computed(() => {
 </template>
 
 <style scoped>
+/* BASE STYLES */
 .karyawan-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
-.address-cell { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; }
-.role-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700; }
+
+/* KARTU UTAMA */
+.card { background: white; border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.main-card { flex: 1; }
+
+.card-header { padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; gap: 1rem; flex-wrap: wrap;}
+.card-header-title { font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0;}
+
+/* ACTION HEADER */
+.header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.search-box { position: relative; min-width: 220px;}
+.search-input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.8125rem; outline: none; transition: border-color 0.2s;}
+.search-input:focus { border-color: #3b82f6; }
+.search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+
+.btn { padding: 0.5rem 0.875rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; transition: all 0.2s; border: 1px solid transparent; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-outline { background: white; border-color: #cbd5e1; color: #475569; }
+.btn-outline:hover { background: #f8fafc; color: #0f172a; border-color: #94a3b8; }
+
+/* TABLE */
+.table-responsive { overflow-y: auto; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch;}
+.modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+.modern-table th { padding: 0.875rem 1.25rem; background: #f8fafc; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.modern-table td { padding: 1rem 1.25rem; font-size: 0.875rem; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.modern-table tbody tr:hover { background: #f8fafc; }
+
+.text-muted { color: #64748b; }
+.font-mono { font-family: monospace; font-size: 0.8125rem;}
+.font-semibold { font-weight: 600; color: #1e293b; }
+.text-sm { font-size: 0.8125rem; }
+.text-xs { font-size: 0.7rem; }
+.text-center { text-align: center !important; }
+.address-cell { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.75rem; }
+
+.role-badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700; white-space: nowrap;}
 .role-badge.staff { background: #f1f5f9; color: #475569; }
 .role-badge.finance-staff { background: #eff6ff; color: #2563eb; } 
 .role-badge.admin { background: #fef3c7; color: #92400e; }
 
+/* AKSI TABEL */
+.action-btns { display: flex; align-items: center; justify-content: center; gap: 0.375rem; }
+.btn-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-icon.edit { background: #eff6ff; color: #3b82f6; }
+.btn-icon.edit:hover { background: #dbeafe; }
+.btn-icon.delete { background: #fef2f2; color: #ef4444; }
+.btn-icon.delete:hover { background: #fee2e2; }
+
+/* PAGINASI & FOOTER */
+.table-footer { padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+.pagination { display: flex; gap: 0.25rem; align-items: center; }
+.page-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;}
+.page-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+.page-btn:hover:not(.active) { background: #f8fafc; color: #0f172a;}
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(2px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.modal-panel { background: white; border-radius: 12px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.modal-wide { max-width: 650px; }
+
+.modal-panel-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 1rem; background: #f8fafc; }
+.modal-header-icon { width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; color: #3b82f6; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+.modal-panel-header h3 { margin: 0; font-size: 1.125rem; font-weight: 700; color: #1e293b; }
+.modal-header-sub { margin: 0.25rem 0 0 0; font-size: 0.75rem; color: #64748b; }
+
+.modal-panel-body { padding: 1.5rem; overflow-y: auto; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.col-span-2 { grid-column: span 2; }
+
+.form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+.form-group label { font-size: 0.75rem; font-weight: 700; color: #475569; }
+.required { color: #ef4444; }
+.form-control { width: 100%; padding: 0.625rem 0.875rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.875rem; outline: none; transition: border-color 0.2s; font-family: inherit; }
+.form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+textarea.form-control { resize: vertical; }
+
+.modal-panel-footer { padding: 1.25rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 0.75rem; background: #f8fafc; }
+
 /* CUSTOM DROPDOWN STYLE */
 .sort-dropdown, .export-dropdown { position: relative; }
-
 .btn-export { display: flex; align-items: center; gap: 0.35rem; }
 .text-danger { color: #ef4444; }
 .text-success { color: #10b981; }
 
 .custom-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 180px;
-  z-index: 50;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  position: absolute; top: calc(100% + 0.5rem); right: 0; background-color: #ffffff;
+  border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 180px; z-index: 50; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
 }
-
-.export-menu {
-  min-width: 200px;
-}
-
+.export-menu { min-width: 200px; }
 .dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #4b5563;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; color: #4b5563; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
 }
-
 .dropdown-item:hover { background-color: #f3f4f6; color: #111827; }
 .dropdown-item.active { background-color: #eff6ff; color: #2563eb; font-weight: 500; }
 .text-primary { color: #2563eb; }
@@ -560,4 +610,77 @@ const filteredEmployees = computed(() => {
 /* TRANSISI DROPDOWN */
 .fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 768px) {
+  /* Hapus limit height di page agar bisa di scroll native */
+  .karyawan-page {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 2rem;
+  }
+
+  .main-card {
+    min-height: 400px;
+  }
+
+  /* Header Stacking */
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .search-box, .sort-dropdown, .export-dropdown, .btn-sort, .btn-export, .btn-add {
+    width: 100%;
+    justify-content: center; /* Tombol teks ke tengah */
+  }
+
+  /* Dropdown agar lebar penuh di HP */
+  .custom-dropdown-menu {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  /* Modals */
+  .modal-panel {
+    max-height: 95vh;
+  }
+  
+  .modal-grid {
+    grid-template-columns: 1fr; /* Jadi 1 kolom */
+    gap: 1rem;
+  }
+
+  .col-span-2 {
+    grid-column: span 1;
+  }
+
+  .modal-panel-footer {
+    flex-direction: column-reverse; /* Batal dibawah, Simpan di atas */
+  }
+  
+  .btn {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  /* Table Footer (Pagination) */
+  .table-footer {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+    padding: 1rem;
+  }
+}
 </style>

@@ -1,12 +1,11 @@
 <script setup>
-import { RouterView, RouterLink, useRouter } from 'vue-router'
+import { RouterView, RouterLink, useRouter, useRoute } from 'vue-router'
 import {
-  LayoutDashboard, Users, Tag, CreditCard, ShieldCheck, Wallet, LogOut
+  LayoutDashboard, Users, Tag, CreditCard, ShieldCheck, Wallet, LogOut, Menu
 } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,6 +22,18 @@ const navItems = [
   { to: '/admin/hak-akses',     label: 'Hak Akses',          icon: ShieldCheck     },
 ]
 
+// === STATE & FUNGSI SIDEBAR MOBILE ===
+const isSidebarOpen = ref(false)
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
+const closeSidebar = () => { isSidebarOpen.value = false }
+
+// Tutup sidebar otomatis saat rute berubah di mobile
+router.afterEach(() => {
+  if (window.innerWidth <= 768) {
+    closeSidebar()
+  }
+})
+
 function logout() {
   authStore.clearAuth()
   router.push('/masuk')
@@ -31,7 +42,11 @@ function logout() {
 
 <template>
   <div class="layout-container">
-    <aside class="sidebar">
+    
+    <!-- Overlay Mobile Sidebar -->
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
+
+    <aside class="sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
       <div class="sidebar-top">
         <RouterLink to="/admin/dasbor" class="logo">
           <div class="logo-icon">RK</div>
@@ -64,6 +79,9 @@ function logout() {
     <main class="main-content">
       <div class="topbar">
         <div class="topbar-left">
+          <button class="menu-toggle" @click="toggleSidebar">
+            <Menu :size="24" />
+          </button>
           <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
         <div class="topbar-right">
@@ -86,6 +104,7 @@ function logout() {
   display: flex;
   min-height: 100vh;
   background-color: var(--color-background);
+  overflow-x: hidden;
 }
 
 .sidebar {
@@ -98,8 +117,9 @@ function logout() {
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 20;
+  z-index: 50;
   overflow: hidden;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-top {
@@ -183,6 +203,11 @@ function logout() {
   font-weight: 600;
 }
 
+.sidebar-footer {
+  padding: 1rem 0.5rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
 .logout-btn {
   background-color: transparent;
   color: rgba(255,255,255,0.7);
@@ -193,13 +218,19 @@ function logout() {
   color: white !important;
 }
 
+/* Overlay untuk Mobile */
+.sidebar-overlay {
+  display: none;
+}
+
 .main-content {
   flex: 1;
   margin-left: 250px;
   height: 100vh;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
 }
 
 .topbar {
@@ -211,12 +242,31 @@ function logout() {
   justify-content: space-between;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 40;
   height: 64px;
+  flex-shrink: 0;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  padding: 0.25rem;
 }
 
 .page-title {
-  font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;
+  font-size: 1.25rem; 
+  font-weight: 700; 
+  color: #1e293b; 
+  margin: 0;
 }
 
 .topbar-right {
@@ -243,6 +293,7 @@ function logout() {
   font-weight: 700;
   font-size: 0.8125rem;
   border: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .user-name-top {
@@ -254,23 +305,61 @@ function logout() {
 .page-content {
   padding: 1.5rem 2rem;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: block; /* Diubah dari flex agar natural scroll pada content */
+  width: 100%;
 }
 
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 70px;
+  /* Hilangkan margin main content */
+  .main-content {
+    margin-left: 0;
   }
-  .sidebar span, .sidebar .logo-text, .sidebar .role-label {
+
+  /* Tampilkan tombol menu (hamburger) */
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Sembunyikan nama user, sisakan avatar */
+  .user-name-top {
     display: none;
   }
-  .main-content {
-    margin-left: 70px;
+
+  /* Penyesuaian padding topbar dan content */
+  .topbar {
+    padding: 0 1rem;
+  }
+  .page-title {
+    font-size: 1.125rem;
   }
   .page-content {
     padding: 1rem;
+  }
+
+  /* Sidebar menjadi Laci (Drawer) Off-Canvas */
+  .sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+  }
+
+  .sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Latar belakang redup saat sidebar terbuka */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 45;
+    backdrop-filter: blur(2px);
   }
 }
 </style>

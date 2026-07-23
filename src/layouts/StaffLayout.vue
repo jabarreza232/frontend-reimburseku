@@ -10,7 +10,8 @@ import {
   Bell, 
   CheckCircle2, 
   Zap, 
-  XCircle 
+  XCircle,
+  Menu // <-- Tambahkan icon Menu
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { ref, computed, onMounted } from 'vue'
@@ -26,6 +27,18 @@ const logout = () => {
   authStore.clearAuth()
   router.push('/masuk')
 }
+
+// === STATE & FUNGSI SIDEBAR MOBILE ===
+const isSidebarOpen = ref(false)
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value }
+const closeSidebar = () => { isSidebarOpen.value = false }
+
+// Tutup sidebar otomatis saat rute berubah di mobile
+router.afterEach(() => {
+  if (window.innerWidth <= 768) {
+    closeSidebar()
+  }
+})
 
 // === STATE & FUNGSI MENU NOTIFIKASI ===
 const showNotifMenu = ref(false)
@@ -119,7 +132,12 @@ onMounted(() => {
 
 <template>
   <div class="layout-container">
-    <aside class="sidebar">
+    
+    <!-- Overlay Mobile Sidebar -->
+    <div v-if="isSidebarOpen" class="sidebar-overlay" @click="closeSidebar"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" :class="{ 'sidebar-open': isSidebarOpen }">
       <div class="sidebar-top">
         <router-link to="/staf/dasbor" class="logo">
           <div class="logo-icon">RK</div>
@@ -181,6 +199,9 @@ onMounted(() => {
     <main class="main-content">
       <header class="topbar">
         <div class="topbar-left">
+          <button class="menu-toggle" @click="toggleSidebar">
+            <Menu :size="24" />
+          </button>
           <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
         <div class="topbar-right">
@@ -190,35 +211,39 @@ onMounted(() => {
               <span v-if="hasUnread" class="notification-dot"></span>
             </button>
 
-            <div v-if="showNotifMenu" class="notif-menu">
-              <div class="notif-header">
-                <h4>Pemberitahuan</h4>
-                <button class="btn-clear" @click="tandaiSemuaDibaca">Tandai dibaca</button>
-              </div>
-              
-              <div class="notif-list">
-                <div v-if="notifications.length === 0" class="notif-item justify-center text-gray-500 text-sm py-6" style="text-align: center;">
-                  Belum ada pemberitahuan baru
+            <!-- Transition ditambahkan agar menu muncul dengan halus -->
+            <transition name="fade-down">
+              <div v-if="showNotifMenu" class="notif-menu">
+                <div class="notif-header">
+                  <h4>Pemberitahuan</h4>
+                  <button class="btn-clear" @click="tandaiSemuaDibaca">Tandai dibaca</button>
                 </div>
-                <div v-for="notif in notifications" :key="notif.id" class="notif-item">
-                  <div class="notif-icon-box" :class="getNotifIconBgClass(notif.type)">
-                    <component :is="getNotifIcon(notif.type)" :size="18" />
+                
+                <div class="notif-list">
+                  <div v-if="notifications.length === 0" class="notif-item justify-center text-gray-500 text-sm py-6" style="text-align: center;">
+                    Belum ada pemberitahuan baru
                   </div>
-                  <div class="notif-content">
-                    <h5>{{ notif.title }}</h5>
-                    <p>{{ notif.message }}</p>
-                    <span class="notif-time">{{ notif.time }}</span>
+                  <div v-for="notif in notifications" :key="notif.id" class="notif-item">
+                    <div class="notif-icon-box" :class="getNotifIconBgClass(notif.type)">
+                      <component :is="getNotifIcon(notif.type)" :size="18" />
+                    </div>
+                    <div class="notif-content">
+                      <h5>{{ notif.title }}</h5>
+                      <p>{{ notif.message }}</p>
+                      <span class="notif-time">{{ notif.time }}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="notif-footer">
-                <button @click="showNotifMenu = false">Tutup Notifikasi</button>
+                <div class="notif-footer">
+                  <button @click="showNotifMenu = false">Tutup Notifikasi</button>
+                </div>
               </div>
-            </div>
+            </transition>
           </div>
         </div>
       </header>
+      
       <div class="page-content">
         <router-view />
       </div>
@@ -232,7 +257,7 @@ onMounted(() => {
   display: flex;
   height: 100vh;
   width: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
   background-color: var(--color-background);
 }
 
@@ -248,12 +273,11 @@ onMounted(() => {
   bottom: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 10;
+  z-index: 50; /* Diubah menjadi 50 agar menutupi topbar saat terbuka di mobile */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sidebar::-webkit-scrollbar {
-  width: 0px;
-}
+.sidebar::-webkit-scrollbar { width: 0px; }
 
 .sidebar-top {
   padding: 2rem 1.5rem 1rem 1.5rem;
@@ -298,327 +322,113 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.nav-icon {
-  flex-shrink: 0;
-}
+.nav-icon { flex-shrink: 0; }
 
 /* Print Menu Special Styling */
-.print-menu {
-  align-items: flex-start;
-}
-
-.nav-text-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.nav-title {
-  line-height: 1;
-}
-
+.print-menu { align-items: flex-start; }
+.nav-text-group { display: flex; flex-direction: column; gap: 0.25rem; }
+.nav-title { line-height: 1; }
 .nav-badges {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.6);
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  margin-top: 0.2rem;
-  transition: all 0.2s;
+  display: flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; color: rgba(255, 255, 255, 0.6);
+  background-color: rgba(0, 0, 0, 0.2); padding: 0.25rem 0.5rem; border-radius: 4px; margin-top: 0.2rem; transition: all 0.2s;
 }
-
-/* Badge when menu is active */
-.nav-item.active .nav-badges {
-  color: white;
-  background-color: rgba(255, 255, 255, 0.2);
-}
+.nav-item.active .nav-badges { color: white; background-color: rgba(255, 255, 255, 0.2); }
 
 /* Sidebar Bottom (Footer & Decor) */
-.sidebar-bottom {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  margin-top: auto;
-}
+.sidebar-bottom { display: flex; flex-direction: column; width: 100%; margin-top: auto; }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  text-decoration: none;
-  color: white;
-}
-
+.logo { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 2rem; text-decoration: none; color: white; }
 .logo-icon {
-  width: 28px;
-  height: 28px;
-  background-color: white;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #3b82f6;
-  font-weight: 800;
-  font-size: 0.8rem;
+  width: 28px; height: 28px; background-color: white; border-radius: 6px; display: flex;
+  align-items: center; justify-content: center; color: #3b82f6; font-weight: 800; font-size: 0.8rem;
 }
+.logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.5px; }
 
-.logo-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
-.user-profile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.avatar-container {
-  position: relative;
-  margin-bottom: 1rem;
-}
-
+.user-profile { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.avatar-container { position: relative; margin-bottom: 1rem; }
 .avatar-img {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid rgba(255, 255, 255, 0.2);
+  width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255, 255, 255, 0.2);
 }
-
 .status-indicator {
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  width: 14px;
-  height: 14px;
-  background-color: #22c55e;
-  border: 2px solid var(--color-primary, #1e293b);
-  border-radius: 50%;
+  position: absolute; bottom: 5px; right: 5px; width: 14px; height: 14px;
+  background-color: #22c55e; border: 2px solid var(--color-primary, #1e293b); border-radius: 50%;
 }
-
-.user-name {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: white; /* Perubahan: Menambahkan warna putih eksplisit pada nama staf */
-}
-
-.user-role {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 1.5rem;
-}
+.user-name { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; color: white; }
+.user-role { font-size: 0.75rem; font-weight: 500; color: rgba(255, 255, 255, 0.8); margin-bottom: 1.5rem; }
 
 .edit-profile-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: white;
-  color: var(--color-primary, #1e293b);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s;
+  display: flex; align-items: center; gap: 0.5rem; background-color: white; color: var(--color-primary, #1e293b);
+  padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem; font-weight: 600; text-decoration: none; transition: all 0.2s;
 }
-
-.edit-profile-btn:hover {
-  background-color: #f8fafc;
-  transform: translateY(-1px);
-}
+.edit-profile-btn:hover { background-color: #f8fafc; transform: translateY(-1px); }
 
 /* Logout Button */
-.sidebar-footer {
-  padding: 0 1rem 1rem 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding-top: 1rem;
-  position: relative;
-  z-index: 2;
-}
-
-.logout-btn {
-  width: 100%;
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.logout-btn:hover {
-  background-color: #dc2626 !important;
-  color: white !important;
-}
-
-.logout-icon {
-  transition: transform 0.3s ease;
-}
-
-.logout-btn:hover .logout-icon {
-  transform: translateX(3px);
-}
+.sidebar-footer { padding: 0 1rem 1rem 1rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1rem; position: relative; z-index: 2; }
+.logout-btn { width: 100%; background-color: transparent; border: none; cursor: pointer; font-family: inherit; color: rgba(255, 255, 255, 0.75); }
+.logout-btn:hover { background-color: #dc2626 !important; color: white !important; }
+.logout-icon { transition: transform 0.3s ease; }
+.logout-btn:hover .logout-icon { transform: translateX(3px); }
 
 /* Bottom Decoration */
-.sidebar-bg-decor {
-  display: flex;
-  align-items: flex-end;
-  height: 50px;
-  opacity: 0.1;
-  padding: 0 1rem;
-  gap: 4px;
-}
-
-.bar {
-  flex: 1;
-  background-color: white;
-  border-radius: 4px 4px 0 0;
-}
-
+.sidebar-bg-decor { display: flex; align-items: flex-end; height: 50px; opacity: 0.1; padding: 0 1rem; gap: 4px; }
+.bar { flex: 1; background-color: white; border-radius: 4px 4px 0 0; }
 .bar-1 { height: 40%; }
 .bar-2 { height: 70%; }
 .bar-3 { height: 100%; }
 .bar-4 { height: 60%; }
 .bar-5 { height: 80%; }
 
+/* Overlay Mobile */
+.sidebar-overlay { display: none; }
+
 /* Main Content */
 .main-content {
-  flex: 1;
-  margin-left: 250px;
-  height: 100vh;
-  /* 1. Ubah overflow menjadi auto agar sisi kanan bisa di-scroll secara keseluruhan */
-  overflow-y: auto; 
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
+  flex: 1; margin-left: 250px; height: 100vh; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.page-content {
-  padding: 1.5rem 2rem;
-  flex: 1;
-  width: 100%;
-  /* 2. Hapus display: flex, flex-direction, dan overflow-y: auto di sini 
-     agar komponen seperti Profile bisa merender tingginya secara alami 
-     dan memicu scroll pada .main-content */
-  display: block; 
-}
+.page-content { padding: 1.5rem 2rem; flex: 1; width: 100%; display: block; }
 
 .topbar {
   height: 64px; background: white; border-bottom: 1px solid #f1f5f9; padding: 0 2rem;
   display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; flex-shrink: 0;
 }
-.page-title {
-  font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;
-}
+.topbar-left { display: flex; align-items: center; gap: 1rem; }
+.menu-toggle { display: none; background: transparent; border: none; color: #475569; cursor: pointer; padding: 0.25rem; }
+.page-title { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0; }
 
-/* --- Notification Icon --- */
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
+.topbar-right { display: flex; align-items: center; gap: 1rem; }
+
+/* Notification Icon */
 .header-icon-btn {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid #e2e8f0;
-  background-color: white;
-  color: #64748b;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  position: relative; width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e2e8f0;
+  background-color: white; color: #64748b; display: flex; justify-content: center; align-items: center;
+  cursor: pointer; transition: all 0.2s;
 }
-.header-icon-btn:hover {
-  background-color: #f8fafc;
-  color: #3b82f6;
-  border-color: #cbd5e1;
-}
+.header-icon-btn:hover { background-color: #f8fafc; color: #3b82f6; border-color: #cbd5e1; }
 .notification-dot {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
-  background-color: #ef4444;
-  border-radius: 50%;
-  border: 1.5px solid white;
+  position: absolute; top: 10px; right: 12px; width: 8px; height: 8px;
+  background-color: #ef4444; border-radius: 50%; border: 1.5px solid white;
 }
 
-/* --- NOTIFICATION DROPDOWN --- */
+/* NOTIFICATION DROPDOWN */
 .notif-wrapper { position: relative; }
 .notif-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  width: 360px;
-  background-color: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  position: absolute; top: calc(100% + 0.5rem); right: 0; width: 360px;
+  background-color: white; border: 1px solid #e2e8f0; border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); z-index: 100; display: flex; flex-direction: column; overflow: hidden;
 }
-.notif-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
-  background-color: #f8fafc;
-}
-.notif-header h4 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-.btn-clear {
-  background: transparent;
-  border: none;
-  font-size: 0.8125rem;
-  color: #3b82f6;
-  font-weight: 500;
-  cursor: pointer;
-}
+.notif-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; background-color: #f8fafc; }
+.notif-header h4 { margin: 0; font-size: 1rem; font-weight: 600; color: #0f172a; }
+.btn-clear { background: transparent; border: none; font-size: 0.8125rem; color: #3b82f6; font-weight: 500; cursor: pointer; }
 .btn-clear:hover { text-decoration: underline; }
-.notif-list {
-  max-height: 380px;
-  overflow-y: auto;
-}
+.notif-list { max-height: 380px; overflow-y: auto; }
 .notif-list::-webkit-scrollbar { width: 4px; }
 .notif-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.notif-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
+.notif-item { display: flex; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background-color 0.2s; }
 .notif-item:last-child { border-bottom: none; }
 .notif-item:hover { background-color: #f8fafc; }
-.notif-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+.notif-icon-box { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .bg-success-light { background-color: #dcfce7; }
 .text-success { color: #16a34a; }
 .bg-primary-light { background-color: #dbeafe; }
@@ -627,102 +437,61 @@ onMounted(() => {
 .text-danger { color: #dc2626; }
 .bg-info-light { background-color: #f1f5f9; }
 .text-info { color: #64748b; }
-.notif-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.notif-content h5 {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-.notif-content p {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: #475569;
-  line-height: 1.4;
-}
-.notif-time {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-top: 0.25rem;
-}
-.notif-footer {
-  padding: 0.75rem;
-  text-align: center;
-  border-top: 1px solid #e2e8f0;
-  background-color: #f8fafc;
-}
-.notif-footer button {
-  background: transparent;
-  border: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-}
+.notif-content { display: flex; flex-direction: column; gap: 0.25rem; }
+.notif-content h5 { margin: 0; font-size: 0.9rem; font-weight: 600; color: #1e293b; }
+.notif-content p { margin: 0; font-size: 0.8125rem; color: #475569; line-height: 1.4; word-wrap: break-word; }
+.notif-time { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; }
+.notif-footer { padding: 0.75rem; text-align: center; border-top: 1px solid #e2e8f0; background-color: #f8fafc; }
+.notif-footer button { background: transparent; border: none; font-size: 0.875rem; font-weight: 500; color: #64748b; cursor: pointer; }
 .notif-footer button:hover { color: #0f172a; }
 
-@media (max-width: 640px) {
-  .notif-menu {
-    right: -10px;
-    width: 320px;
+/* ANIMASI DROPDOWN */
+.fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+@media (max-width: 768px) {
+  /* Hapus margin agar main content memenuhi layar */
+  .main-content { margin-left: 0; }
+
+  /* Topbar Penyesuaian */
+  .topbar { padding: 0 1rem; }
+  .menu-toggle { display: flex; align-items: center; justify-content: center; }
+  .page-title { font-size: 1.125rem; }
+  .page-content { padding: 1rem; }
+
+  /* Sidebar menjadi Laci (Drawer) Off-Canvas */
+  .sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+  }
+  .sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Latar belakang redup saat sidebar terbuka */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 45;
+    backdrop-filter: blur(2px);
   }
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    width: 70px;
-  }
-
-  .main-content {
-    margin-left: 70px;
-  }
-
-  .page-content {
-    padding: 1rem 0.5rem;
-  }
-
-  .logo-text, 
-  .user-name, 
-  .user-role, 
-  .edit-profile-btn span, 
-  .nav-item span, 
-  .nav-text-group {
-    display: none;
-  }
-
-  .avatar-img {
-    width: 40px;
-    height: 40px;
-    border-width: 2px;
-  }
-
-  .status-indicator {
-    width: 12px;
-    height: 12px;
-    bottom: 0px;
-    right: 0px;
-  }
-
-  .edit-profile-btn {
-    padding: 0.5rem;
-    border-radius: 50%;
-  }
-
-  .sidebar-top {
-    padding: 1.5rem 0.5rem 1rem 0.5rem;
-  }
-
-  .nav-item {
-    padding: 0.875rem 0;
-    justify-content: center;
-  }
-
-  .logo {
-    margin-bottom: 1.5rem;
+@media (max-width: 480px) {
+  /* Dropdown Notifikasi menyesuaikan layar penuh pada HP sempit */
+  .notif-menu {
+    position: fixed;
+    top: 60px;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    max-width: calc(100vw - 2rem);
   }
 }
 </style>

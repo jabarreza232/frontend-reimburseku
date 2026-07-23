@@ -329,7 +329,7 @@ const exportToPDF = () => {
               <td class="text-muted">{{ d.date }}</td>
               <td>
                 <button v-if="d.proofUrl" @click.prevent="openPreview(d.proofUrl)" class="btn-text-sm">Lihat Bukti</button>
-                <span v-else>-</span>
+                <span v-else class="text-muted">-</span>
               </td>
               <td class="note-cell" :title="d.note">{{ d.note }}</td>
               
@@ -340,7 +340,9 @@ const exportToPDF = () => {
               </td>
 
               <td class="text-center">
-                <button class="btn-icon delete-row" title="Hapus" @click="deleteDeposit(d.id)"><Trash2 :size="12" /></button>
+                <div class="action-btns">
+                  <button class="btn-icon delete" title="Hapus" @click="deleteDeposit(d.id)"><Trash2 :size="12" /></button>
+                </div>
               </td>
             </tr>
             <tr v-if="filteredDeposits.length === 0">
@@ -373,10 +375,10 @@ const exportToPDF = () => {
 
     <!-- Modal Log Deposit -->
     <div v-if="showLogModal" class="modal-overlay" @click.self="closeLogModal">
-      <div class="modal-panel modal-wide" style="max-width: 500px;">
-        <div class="modal-panel-header" style="justify-content: space-between; align-items: flex-start;">
-          <div style="display: flex; gap: 1rem;">
-            <div class="modal-header-icon" style="background: #eff6ff; color: #3b82f6;">
+      <div class="modal-panel modal-log">
+        <div class="modal-panel-header">
+          <div class="header-left">
+            <div class="modal-header-icon">
               <History :size="18" />
             </div>
             <div>
@@ -384,12 +386,12 @@ const exportToPDF = () => {
               <p class="modal-header-sub">Catatan aktivitas untuk deposit ini</p>
             </div>
           </div>
-          <button @click="closeLogModal" style="background: none; border: none; cursor: pointer; color: #94a3b8;">
+          <button @click="closeLogModal" class="btn-close-header">
             <X :size="18" />
           </button>
         </div>
         
-        <div class="modal-panel-body" style="min-height: 200px; max-height: 60vh; overflow-y: auto; padding: 1.5rem;">
+        <div class="modal-panel-body log-body">
           <div v-if="isLoadingLogs" class="state-message">
             Memuat data log...
           </div>
@@ -419,83 +421,99 @@ const exportToPDF = () => {
 </template>
 
 <style scoped>
+/* BASE STYLES */
 .deposit-page { display: flex; flex-direction: column; gap: 1rem; flex: 1; height: 100%; overflow: hidden; }
+
+/* KARTU UTAMA */
+.card { background: white; border-radius: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.main-card { flex: 1; }
+
+.card-header { padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; gap: 1rem; flex-wrap: wrap;}
+.card-header-title { font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0;}
+
+/* ACTION HEADER */
+.header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.search-box { position: relative; min-width: 220px;}
+.search-input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.8125rem; outline: none; transition: border-color 0.2s; box-sizing: border-box;}
+.search-input:focus { border-color: #3b82f6; }
+.search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+
+.btn { padding: 0.5rem 0.875rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; transition: all 0.2s; border: 1px solid transparent; font-family: inherit;}
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-outline { background: white; border-color: #cbd5e1; color: #475569; }
+.btn-outline:hover { background: #f8fafc; color: #0f172a; border-color: #94a3b8; }
+
+/* TABLE */
+.table-responsive { overflow-y: auto; overflow-x: auto; flex: 1; -webkit-overflow-scrolling: touch;}
+.modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+.modern-table th { padding: 0.875rem 1.25rem; background: #f8fafc; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.modern-table td { padding: 1rem 1.25rem; font-size: 0.875rem; color: #334155; border-bottom: 1px solid #f1f5f9; vertical-align: middle; white-space: nowrap;}
+.modern-table tbody tr:hover { background: #f8fafc; }
+
+.font-semibold { font-weight: 600; color: #1e293b; }
+.text-primary-dark { color: #1e40af; }
+.font-medium { font-weight: 500; }
+.font-bold { font-weight: 700; }
+.text-success { color: #16a34a; }
+.text-muted { color: #64748b; font-size: 0.8125rem;}
+.font-mono { font-family: monospace; font-size: 0.8125rem;}
+.text-center { text-align: center !important; }
+
 .note-cell { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.7rem; }
-.btn-text-sm { background: none; border: none; color: #3b82f6; font-size: 0.7rem; font-weight: 700; cursor: pointer; padding: 0; }
+.btn-text-sm { background: none; border: none; color: #3b82f6; font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 0; }
+.btn-text-sm:hover { text-decoration: underline; }
 
-.btn-log {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.btn-log:hover {
-  background: #e2e8f0;
-  color: #1e293b;
-}
+/* AKSI TABEL (LOG & DELETE) */
+.action-btns { display: flex; align-items: center; justify-content: center; gap: 0.375rem; }
+.btn-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s; }
+.btn-icon.delete { background: #fef2f2; color: #ef4444; }
+.btn-icon.delete:hover { background: #fee2e2; }
 
-/* Style Select Custom (Milik Filter/Sort asli) */
+.btn-log { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; cursor: pointer; transition: all 0.2s ease; margin: 0 auto;}
+.btn-log:hover { background: #e2e8f0; color: #1e293b; }
+
+/* PAGINASI & FOOTER */
+.table-footer { padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff; }
+.pagination { display: flex; gap: 0.25rem; align-items: center; }
+.page-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s;}
+.page-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+.page-btn:hover:not(.active) { background: #f8fafc; color: #0f172a;}
+
+/* STYLE FILTER / SORT DROPDOWN SELECT */
 .custom-select {
-  padding: 0.4rem 2rem 0.4rem 0.75rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
   background-color: white;
   color: #475569;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   outline: none;
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.6rem center;
+  background-position: right 0.75rem center;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
-.custom-select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
+.custom-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
 /* CUSTOM EXPORT DROPDOWN UI */
 .export-dropdown { position: relative; }
-.btn-export { display: flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.btn-export { display: flex; align-items: center; gap: 0.35rem; }
 .text-danger { color: #ef4444; }
 .text-success { color: #10b981; }
 
 .custom-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  min-width: 200px;
-  z-index: 50;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  position: absolute; top: calc(100% + 0.5rem); right: 0; background-color: #ffffff;
+  border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-width: 200px; z-index: 50; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem;
 }
 .dropdown-item {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: #4b5563;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; padding: 0.5rem 0.75rem;
+  font-size: 0.875rem; color: #4b5563; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
 }
 .dropdown-item:hover { background-color: #f3f4f6; color: #111827; }
 
@@ -503,39 +521,90 @@ const exportToPDF = () => {
 .fade-down-enter-active, .fade-down-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-down-enter-from, .fade-down-leave-to { opacity: 0; transform: translateY(-10px); }
 
+/* MODALS */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem;}
 
-/* Image Preview Modal CSS */
-.modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.75); display: flex; align-items: center; justify-content: center; z-index: 9999;
-}
-.modal-preview-content {
-  position: relative; max-width: 90vw; max-height: 90vh; background: #fff; padding: 10px; border-radius: 8px;
-}
-.preview-image {
-  max-width: 100%; max-height: calc(90vh - 40px); object-fit: contain; display: block;
-}
-.btn-close-modal {
-  position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: none;
-  width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
+/* Modal Image Preview */
+.modal-preview-content { position: relative; max-width: 90vw; max-height: 90vh; background: #fff; padding: 10px; border-radius: 12px; }
+.preview-image { max-width: 100%; max-height: calc(90vh - 40px); object-fit: contain; display: block; border-radius: 8px;}
+.btn-close-modal { position: absolute; top: -12px; right: -12px; background: #ef4444; color: white; border: none; width: 28px; height: 28px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
 /* Modal Custom Log Component */
-.modal-panel { background: #fff; border-radius: 12px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-.modal-panel-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 1rem; }
-.modal-header-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.modal-panel-header h3 { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0; }
+.modal-panel { background: #fff; border-radius: 12px; width: 100%; max-width: 500px; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+.modal-panel-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: flex-start; justify-content: space-between; background: #f8fafc; border-radius: 12px 12px 0 0;}
+.header-left { display: flex; gap: 1rem; align-items: center;}
+.modal-header-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #eff6ff; color: #3b82f6;}
+.modal-panel-header h3 { font-size: 1.125rem; font-weight: 700; color: #1e293b; margin: 0; }
 .modal-header-sub { font-size: 0.75rem; color: #64748b; margin: 0; margin-top: 0.25rem; }
+.btn-close-header { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; border-radius: 6px; transition: background 0.2s;}
+.btn-close-header:hover { background: #e2e8f0; color: #0f172a;}
+
+.modal-panel-body { padding: 1.5rem; overflow-y: auto; max-height: 60vh; }
+.state-message { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 2rem 0; font-weight: 500;}
 
 /* Timeline UI untuk Log */
-.state-message { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 2rem 0; }
 .timeline-container { position: relative; padding-left: 0.5rem; }
 .timeline-item { position: relative; padding-left: 1.5rem; padding-bottom: 1.5rem; border-left: 2px solid #e2e8f0; }
 .timeline-item:last-child { border-left-color: transparent; padding-bottom: 0; }
 .timeline-indicator { position: absolute; left: -6px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; border: 2px solid #fff; box-shadow: 0 0 0 2px #eff6ff; }
-.timeline-date { font-size: 0.65rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.25rem; }
-.timeline-action { font-size: 0.75rem; color: #475569; margin-bottom: 0.25rem; }
-.badge-action { background: #f1f5f9; color: #1e293b; font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 700; margin-left: 0.25rem; }
-.timeline-comment { font-size: 0.8rem; color: #1e293b; line-height: 1.4; background: #f8fafc; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #f1f5f9; }
+.timeline-date { font-size: 0.7rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.25rem; }
+.timeline-action { font-size: 0.75rem; color: #475569; margin-bottom: 0.35rem; font-weight: 500;}
+.badge-action { background: #f1f5f9; color: #1e293b; font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 700; margin-left: 0.25rem; }
+.timeline-comment { font-size: 0.8rem; color: #1e293b; line-height: 1.5; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 8px; margin-top: 0.5rem; border: 1px solid #f1f5f9; }
+
+
+/* =========================================
+   RESPONSIVITAS MOBILE & TABLET
+   ========================================= */
+
+@media (max-width: 768px) {
+  /* Hapus limit height agar native body scroll bisa berfungsi di mobile */
+  .deposit-page {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 2rem;
+  }
+
+  .main-card {
+    min-height: 400px;
+  }
+
+  /* Header Stacking: Semua tombol, search, dropdown, memanjang ke bawah */
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.625rem;
+  }
+
+  .search-box, .filter-dropdown, .sort-dropdown, .export-dropdown, .custom-select, .btn-export, .btn-archive {
+    width: 100%;
+    justify-content: center; /* Label ke tengah pada mobile */
+  }
+
+  /* Dropdown agar mengambil lebar penuh saat diklik di HP */
+  .custom-dropdown-menu {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  /* Table Footer (Pagination) jadi di tengah / tumpuk vertikal */
+  .table-footer {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  /* Modal Adjustments untuk Layar HP */
+  .modal-panel {
+    max-height: 90vh; /* Memastikan tidak lewat batas tinggi HP */
+  }
+}
 </style>

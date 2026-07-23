@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue' // Tambahkan onMounted
 import { useRouter } from 'vue-router'
-import { Zap, BarChart3, ShieldCheck, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-vue-next'
-import AuthService from '@/api/ApiService'
+import { Zap, BarChart3, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-vue-next'
+import ApiService from '@/api/ApiService' // Gunakan ApiService untuk general API call
 import Swal from 'sweetalert2'
 
 const router = useRouter()
@@ -10,21 +10,8 @@ const isLoading = ref(false)
 const showPassword = ref(false)
 const errorMsg = ref('')
 
-// DATA DUMMY: Menggantikan fungsi API (1 = true, 0 = false)
-const providers = ref([
-  { id_provider: 1, provider_name: 'Gopay', provider_type: 'e-wallet', provider_code: 'gopay', is_active: true },
-  { id_provider: 2, provider_name: 'Bank Central Asia (BCA)', provider_type: 'bank-transfer', provider_code: 'bca', is_active: true },
-  { id_provider: 4, provider_name: 'Bank Permata', provider_type: 'bank-transfer', provider_code: 'permata', is_active: true },
-  { id_provider: 5, provider_name: 'Bank Mandiri', provider_type: 'bank-transfer', provider_code: 'mandiri', is_active: true },
-  { id_provider: 6, provider_name: 'Bank Rakyat Indonesia (BRI)', provider_type: 'bank-transfer', provider_code: 'bri', is_active: true },
-  { id_provider: 7, provider_name: 'Bank Negara Indonesia (BNI)', provider_type: 'bank-transfer', provider_code: 'bni', is_active: true },
-  { id_provider: 8, provider_name: 'Bank Syariah Indonesia (BSI)', provider_type: 'bank-transfer', provider_code: 'bsi', is_active: true },
-  { id_provider: 10, provider_name: 'ShopeePay', provider_type: 'e-wallet', provider_code: 'shopeepay', is_active: true },
-  { id_provider: 11, provider_name: 'DANA', provider_type: 'e-wallet', provider_code: 'dana', is_active: true },
-  { id_provider: 12, provider_name: 'OVO', provider_type: 'e-wallet', provider_code: 'ovo', is_active: true },
-  { id_provider: 13, provider_name: 'Flip', provider_type: 'e-wallet', provider_code: 'flip', is_active: false },
-  { id_provider: 14, provider_name: 'LinkAja', provider_type: 'e-wallet', provider_code: 'linkaja', is_active: false }
-])
+// State dikosongkan, akan diisi dari API
+const providers = ref([])
 
 const form = ref({
   name: '',
@@ -40,6 +27,23 @@ const form = ref({
   role_id: 1,
   account_holder_name: ''
 })
+
+// --- MENGAMBIL DATA PROVIDER DARI API ---
+const fetchProviders = async () => {
+  try {
+    const res = await ApiService.getProviders()
+    // Menyesuaikan dengan standar struktur response pagination/collection Laravel
+    providers.value = res.data?.data?.data || res.data?.data || []
+  } catch (error) {
+    console.error('Gagal memuat metode pembayaran:', error)
+    // Opsional: Tampilkan notifikasi jika API benar-benar gagal
+  }
+}
+
+onMounted(() => {
+  fetchProviders()
+})
+// ----------------------------------------
 
 // --- LOGIKA PENGELOMPOKAN & LABEL DINAMIS ---
 const bankProviders = computed(() => {
@@ -112,14 +116,13 @@ async function handleRegister() {
   isLoading.value = true
 
   try {
-    // Pastikan data yang dikirim sudah dibersihkan dari spasi/strip
     const payload = {
       ...form.value,
       phone: cleanTelepon,
       account_number: cleanRekening
     }
 
-    await AuthService.register(payload)
+    await ApiService.register(payload)
 
     Swal.fire({
       icon: 'success',
@@ -247,8 +250,8 @@ async function handleRegister() {
 
             <div class="form-group full-width">
               <label class="form-label">Metode Pembayaran <span class="text-red-500">*</span></label>
-              <select v-model="form.provider_id" class="form-control" required>
-                <option value="" disabled>Pilih Metode Pembayaran</option>
+              <select v-model="form.provider_id" class="form-control" required :disabled="providers.length === 0">
+                <option value="" disabled>{{ providers.length === 0 ? 'Memuat Metode...' : 'Pilih Metode Pembayaran' }}</option>
                 
                 <optgroup label="Bank Transfer" v-if="bankProviders.length > 0">
                   <option v-for="bank in bankProviders" :key="bank.id_provider" :value="bank.id_provider">
